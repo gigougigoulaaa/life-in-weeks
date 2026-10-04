@@ -46,8 +46,8 @@ function parseDays(raw: any): any[] {
   return result
 }
 
-// Sur téléphone : grosses cases fixes (16 px) dans une zone qui défile
-// horizontalement et verticalement (toute la vie, jusqu'à END_YEAR).
+// Sur téléphone : grosses cases fixes (16 px), toute la vie jusqu'à END_YEAR.
+// La page défile normalement vers le bas ; seule la grille défile à l'horizontale.
 // Sur ordinateur : les 52 semaines tiennent toujours dans la largeur disponible.
 function computeLayout(containerWidth: number) {
   const isMobile = containerWidth < 600
@@ -102,6 +102,7 @@ export default function CalendarPage() {
   )
   const containerRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const headerStripRef = useRef<HTMLDivElement>(null)
 
   const searchTimerRef = useRef<any>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -335,14 +336,25 @@ export default function CalendarPage() {
   const totalEvents = days.reduce((acc, d) => acc + (d?.events?.length || 0), 0)
   const { cellSize, cellGap, yearColWidth, sideMargin } = layout
 
-  // Fait défiler la grille pour centrer la semaine actuelle à l'écran
+  // Garde les numéros de semaines alignés avec la grille pendant le défilement horizontal
+  const syncHeader = () => {
+    const el = scrollRef.current
+    const strip = headerStripRef.current
+    if (el && strip) strip.style.transform = `translateX(${-el.scrollLeft}px)`
+  }
+
+  // Centre la semaine actuelle : horizontalement dans la grille, verticalement sur la page
   const focusCurrentWeek = (smooth = false) => {
     const el = scrollRef.current
     if (!el) return
-    const row = el.querySelector(`[data-year="${currentYear}"]`) as HTMLElement | null
     const x = yearColWidth + (currentWeek - 1) * (cellSize + cellGap) + cellSize / 2 - el.clientWidth / 2
-    const y = row ? row.offsetTop + row.offsetHeight / 2 - el.clientHeight / 2 : 0
-    el.scrollTo({ left: Math.max(0, x), top: Math.max(0, y), behavior: smooth ? 'smooth' : 'auto' })
+    el.scrollTo({ left: Math.max(0, x), behavior: smooth ? 'smooth' : 'auto' })
+    const row = el.querySelector(`[data-year="${currentYear}"]`) as HTMLElement | null
+    if (row) {
+      const y = row.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.4
+      window.scrollTo({ top: Math.max(0, y), behavior: smooth ? 'smooth' : 'auto' })
+    }
+    syncHeader()
   }
 
   // Focus automatique : à l'ouverture et à la rotation de l'écran
@@ -562,33 +574,18 @@ export default function CalendarPage() {
             </button>
           </div>
         ) : (
-          <div ref={containerRef} className="w-full overflow-x-hidden" style={{ paddingLeft: sideMargin, paddingRight: sideMargin }}>
+          <div ref={containerRef} className={layout.isMobile ? 'w-full' : 'w-full overflow-x-hidden'} style={{ paddingLeft: sideMargin, paddingRight: sideMargin }}>
 
             {layout.isMobile ? (
               <>
-                {/* Bouton retour à la semaine actuelle (téléphone) */}
-                <div className="flex justify-end mb-3">
-                  <button onClick={() => focusCurrentWeek(true)}
-                    className="px-3 h-9 rounded-lg border text-xs font-medium whitespace-nowrap"
-                    style={{ borderColor: theme.accent, color: theme.accent }}>
-                    Aujourd'hui
-                  </button>
-                </div>
-
-                {/* Toute la vie, défilement dans les deux sens */}
-                <div ref={scrollRef} className="overflow-auto"
-                  style={{ height: 'calc(100dvh - 330px)', minHeight: 320, overscrollBehavior: 'contain' }}>
-                  <div style={{ width: yearColWidth + 52 * (cellSize + cellGap), position: 'relative' }}>
-
-                    {/* Numéros de semaines (restent en haut pendant le défilement) */}
-                    <div className="flex" style={{
-                      position: 'sticky', top: 0, zIndex: 6, paddingBottom: 6,
-                      backgroundColor: theme.bg + 'e6'
-                    }}>
-                      <div style={{
-                        width: yearColWidth, flexShrink: 0, position: 'sticky', left: 0, zIndex: 7,
-                        backgroundColor: theme.bg
-                      }} />
+                {/* Numéros de semaines : restent en haut de l'écran quand on descend dans la page */}
+                <div className="flex" style={{
+                  position: 'sticky', top: 0, zIndex: 20, paddingBottom: 6, paddingTop: 4,
+                  backgroundColor: theme.bg + 'f2'
+                }}>
+                  <div style={{ width: yearColWidth, flexShrink: 0 }} />
+                  <div style={{ flex: 1, overflow: 'hidden' }}>
+                    <div ref={headerStripRef} className="flex" style={{ width: 52 * (cellSize + cellGap), willChange: 'transform' }}>
                       {Array.from({ length: 52 }, (_, i) => {
                         const n = i + 1
                         const isNow = n === currentWeek
@@ -596,7 +593,7 @@ export default function CalendarPage() {
                         return (
                           <div key={i} style={{
                             width: cellSize, marginRight: cellGap, flexShrink: 0, textAlign: 'center',
-                            fontSize: '9px', lineHeight: 1, paddingTop: 2,
+                            fontSize: '9px', lineHeight: 1,
                             color: isNow ? theme.accent : theme.past,
                             fontWeight: isNow ? 700 : 400
                           }}>
@@ -605,8 +602,12 @@ export default function CalendarPage() {
                         )
                       })}
                     </div>
+                  </div>
+                </div>
 
-                    {/* Lignes des années */}
+                {/* Toute la vie : la page défile vers le bas, la grille défile à l'horizontale */}
+                <div ref={scrollRef} onScroll={syncHeader} className="overflow-x-auto">
+                  <div style={{ width: yearColWidth + 52 * (cellSize + cellGap), position: 'relative' }}>
                     {years.map(year => (
                       <div key={year} data-year={year} className="flex items-center" style={{ marginBottom: cellGap + 2 }}>
                         <div style={{
@@ -623,6 +624,13 @@ export default function CalendarPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Bouton flottant : retour à la semaine actuelle */}
+                <button onClick={() => focusCurrentWeek(true)}
+                  className="fixed right-4 bottom-24 z-30 px-3 h-9 rounded-full border text-xs font-medium whitespace-nowrap"
+                  style={{ borderColor: theme.accent, color: theme.accent, backgroundColor: theme.bg + 'e6' }}>
+                  Aujourd'hui
+                </button>
               </>
             ) : (
               <>
