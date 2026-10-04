@@ -50,13 +50,13 @@ function parseDays(raw: any): any[] {
 // dans la largeur disponible, sans jamais nécessiter de défilement horizontal.
 function computeLayout(containerWidth: number) {
   const isMobile = containerWidth < 600
-  const yearColWidth = isMobile ? 34 : 80
-  const sideMargin = isMobile ? 8 : 35
+  const yearColWidth = isMobile ? 28 : 80
+  const sideMargin = isMobile ? 4 : 35
   const available = containerWidth - sideMargin * 2 - yearColWidth
-  const ratio = 1.8
+  const ratio = 1.3
   let cellSize = available / (52 * ratio)
-  cellSize = Math.max(2.5, Math.min(cellSize, 16))
-  const cellGap = cellSize * 0.8
+  cellSize = Math.max(5, Math.min(cellSize, 16))
+  const cellGap = cellSize * 0.3
   return { cellSize, cellGap, yearColWidth, sideMargin }
 }
 
@@ -93,7 +93,7 @@ export default function CalendarPage() {
   const [newEventPhotos, setNewEventPhotos] = useState<string[]>([])
   const [uploadingEvent, setUploadingEvent] = useState(false)
 
-  const [layout, setLayout] = useState({ cellSize: 10, cellGap: 8, yearColWidth: 80, sideMargin: 35 })
+  const [layout, setLayout] = useState({ cellSize: 10, cellGap: 3, yearColWidth: 28, sideMargin: 4 })
   const containerRef = useRef<HTMLDivElement>(null)
 
   const searchTimerRef = useRef<any>(null)
