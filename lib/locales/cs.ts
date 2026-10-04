@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Uložit profil",
   "home.saved": "Profil uložen!",
   "home.error": "Chyba: ",
+  "layout.title": "Rozložení",
+  "layout.journal": "Deník",
+  "layout.mosaic": "Mozaika",
+  "layout.cards": "Karty",
+  "layout.album": "Album",
+  "week.addMedia": "Přidat fotky nebo videa",
 }
 
 export default dict

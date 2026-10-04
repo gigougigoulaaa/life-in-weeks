@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Profil mentése",
   "home.saved": "Profil mentve!",
   "home.error": "Hiba: ",
+  "layout.title": "Elrendezés",
+  "layout.journal": "Napló",
+  "layout.mosaic": "Mozaik",
+  "layout.cards": "Kártyák",
+  "layout.album": "Album",
+  "week.addMedia": "Fotók vagy videók hozzáadása",
 }
 
 export default dict

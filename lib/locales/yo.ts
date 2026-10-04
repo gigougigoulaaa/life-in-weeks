@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Fi àkọọ́lẹ̀ pamọ́",
   "home.saved": "A ti fi àkọọ́lẹ̀ pamọ́!",
   "home.error": "Àṣìṣe: ",
+  "layout.title": "Ìṣètò",
+  "layout.journal": "Ìwé ìrántí",
+  "layout.mosaic": "Mósáìkì",
+  "layout.cards": "Káàdì",
+  "layout.album": "Àlbọ́ọ̀mù",
+  "week.addMedia": "Fi àwọn fọ́tò tàbí fídíò kún un",
 }
 
 export default dict

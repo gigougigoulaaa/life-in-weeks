@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Αποθήκευση προφίλ",
   "home.saved": "Το προφίλ αποθηκεύτηκε!",
   "home.error": "Σφάλμα: ",
+  "layout.title": "Διάταξη",
+  "layout.journal": "Ημερολόγιο",
+  "layout.mosaic": "Μωσαϊκό",
+  "layout.cards": "Κάρτες",
+  "layout.album": "Άλμπουμ",
+  "week.addMedia": "Προσθήκη φωτογραφιών ή βίντεο",
 }
 
 export default dict

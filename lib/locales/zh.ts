@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "保存资料",
   "home.saved": "资料已保存！",
   "home.error": "错误：",
+  "layout.title": "布局",
+  "layout.journal": "日志",
+  "layout.mosaic": "马赛克",
+  "layout.cards": "卡片",
+  "layout.album": "相册",
+  "week.addMedia": "添加照片或视频",
 }
 
 export default dict

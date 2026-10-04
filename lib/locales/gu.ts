@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "પ્રોફાઇલ સાચવો",
   "home.saved": "પ્રોફાઇલ સાચવાઈ ગઈ!",
   "home.error": "ભૂલ: ",
+  "layout.title": "લેઆઉટ",
+  "layout.journal": "જર્નલ",
+  "layout.mosaic": "મોઝેક",
+  "layout.cards": "કાર્ડ",
+  "layout.album": "આલ્બમ",
+  "week.addMedia": "ફોટા અથવા વીડિયો ઉમેરો",
 }
 
 export default dict

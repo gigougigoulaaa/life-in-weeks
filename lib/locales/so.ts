@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Kaydi xogta",
   "home.saved": "Xogta waa la kaydiyay!",
   "home.error": "Khalad: ",
+  "layout.title": "Habayn",
+  "layout.journal": "Joornaal",
+  "layout.mosaic": "Muusaag",
+  "layout.cards": "Kaararka",
+  "layout.album": "Albam",
+  "week.addMedia": "Ku dar sawirro ama muuqaallo",
 }
 
 export default dict

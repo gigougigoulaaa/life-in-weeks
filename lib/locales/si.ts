@@ -117,6 +117,12 @@ const dict = {
   "home.saveProfile": "පැතිකඩ සුරකින්න",
   "home.saved": "පැතිකඩ සුරකින ලදී!",
   "home.error": "දෝෂය: ",
+  "layout.title": "පිරිසැලසුම",
+  "layout.journal": "සඟරාව",
+  "layout.mosaic": "මෝසෙයික්",
+  "layout.cards": "කාඩ්පත්",
+  "layout.album": "ඇල්බමය",
+  "week.addMedia": "ඡායාරූප හෝ වීඩියෝ එක් කරන්න",
 }
 
 export default dict

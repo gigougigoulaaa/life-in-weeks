@@ -117,6 +117,12 @@ const dict = {
   "home.saveProfile": "Профильді сақтау",
   "home.saved": "Профиль сақталды!",
   "home.error": "Қате: ",
+  "layout.title": "Орналасу",
+  "layout.journal": "Журнал",
+  "layout.mosaic": "Мозаика",
+  "layout.cards": "Карталар",
+  "layout.album": "Альбом",
+  "week.addMedia": "Фото немесе бейне қосу",
 }
 
 export default dict

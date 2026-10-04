@@ -88,6 +88,27 @@ const PALETTE: string[] = [
   ...NEUTRALS,
   ...LIGHTNESS.flatMap(l => HUES.map(h => hslToHex(h, 85, l))),
 ]
+// Dispositions des évènements d'une semaine (chaque utilisateur choisit la sienne)
+type EventLayout = 'journal' | 'mosaic' | 'cards' | 'album'
+const LAYOUTS: { key: EventLayout, labelKey: Key, icon: string }[] = [
+  { key: 'journal', labelKey: 'layout.journal', icon: '📰' },
+  { key: 'mosaic', labelKey: 'layout.mosaic', icon: '🧩' },
+  { key: 'cards', labelKey: 'layout.cards', icon: '🃏' },
+  { key: 'album', labelKey: 'layout.album', icon: '📔' },
+]
+const isVideo = (url: string) => /\.(mp4|mov|webm|m4v|ogv)(\?|$)/i.test(url)
+const toInputDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const RATIOS = ['4 / 3', '3 / 4', '1 / 1', '4 / 5']
+
+// Photo ou vidéo, visible directement
+function Media({ url, className, controls = true }: { url: string, className?: string, controls?: boolean }) {
+  if (isVideo(url)) {
+    return <video src={`${url}#t=0.1`} controls={controls} playsInline preload="metadata" className={className} />
+  }
+  return <img src={url} alt="" loading="lazy" className={className} />
+}
+
 const EMPTY_DAYS = () => Array(7).fill(null).map(() => ({ events: [] }))
 
 function parseDays(raw: any): any[] {
@@ -118,7 +139,7 @@ function computeLayout(containerWidth: number) {
 }
 
 export default function CalendarPage() {
-  const { t, dayNames, timeAgo, yearsAgo, fmtDayMonth } = useI18n()
+  const { t, timeAgo, yearsAgo, fmtStamp } = useI18n()
   const themeLabel = (name: string) => (THEME_KEYS[name] ? t(THEME_KEYS[name]) : name)
   const [user, setUser] = useState<any>(null)
   const [birthDate, setBirthDate] = useState<Date | null>(null)
@@ -142,8 +163,9 @@ export default function CalendarPage() {
   const [notifications, setNotifications] = useState<any[]>([])
   const [showNotifs, setShowNotifs] = useState(false)
   const [days, setDays] = useState<any[]>(EMPTY_DAYS())
-  const [selectedDay, setSelectedDay] = useState<number | null>(null)
-  const [showDays, setShowDays] = useState(false)
+  const [newEventDate, setNewEventDate] = useState('')
+  const [eventLayout, setEventLayout] = useState<EventLayout>('journal')
+  const [newEventTime, setNewEventTime] = useState('')
   const [newEventTitle, setNewEventTitle] = useState('')
   const [newEventDesc, setNewEventDesc] = useState('')
   const [newEventPhotos, setNewEventPhotos] = useState<string[]>([])
@@ -184,6 +206,7 @@ export default function CalendarPage() {
         if (profile.theme.accent) setTheme(profile.theme)
         if (profile.theme.cellShape) setCellShape(profile.theme.cellShape)
         if (profile.theme.bgImage) setBgImage(profile.theme.bgImage)
+        if (LAYOUTS.some(l => l.key === profile.theme.eventLayout)) setEventLayout(profile.theme.eventLayout)
       }
       loadMemories(data.user.id)
       loadNotifications(data.user.id)
@@ -232,9 +255,14 @@ export default function CalendarPage() {
     }, 300)
   }
 
-  const saveTheme = async (newTheme: any, shape?: string, bg?: string) => {
+  const saveTheme = async (newTheme: any, shape?: string, bg?: string, layoutChoice?: EventLayout) => {
     if (!user) return
-    await supabase.from('profiles').upsert({ id: user.id, theme: { ...newTheme, cellShape: shape || cellShape, bgImage: bg !== undefined ? bg : bgImage } })
+    await supabase.from('profiles').upsert({ id: user.id, theme: { ...newTheme, cellShape: shape || cellShape, bgImage: bg !== undefined ? bg : bgImage, eventLayout: layoutChoice || eventLayout } })
+  }
+
+  const chooseLayout = (choice: EventLayout) => {
+    setEventLayout(choice)
+    saveTheme(theme, undefined, undefined, choice)
   }
 
   // Couleurs effectives (valeurs par défaut si l'utilisateur n'a rien choisi)
@@ -288,15 +316,17 @@ export default function CalendarPage() {
 
   const resetEventForm = () => {
     setNewEventTitle('')
+    setNewEventTime('')
     setNewEventDesc('')
     setNewEventPhotos([])
   }
 
   const openWeek = async (year: number, week: number) => {
     setSelectedWeek({ year, week })
-    setShowDays(false)
-    setSelectedDay(null)
     resetEventForm()
+    // Date proposée par défaut : aujourd'hui si c'est la semaine en cours, sinon le premier jour de la semaine
+    const dates = getWeekDates(year, week)
+    setNewEventDate(toInputDate(year === currentYear && week === currentWeek ? new Date() : dates[0]))
     setDays(EMPTY_DAYS())
     setSelectedWeekId(null)
     if (!user) return
@@ -326,9 +356,11 @@ export default function CalendarPage() {
     setUploadingEvent(false)
   }
 
-  const addEventToDay = async (dayIndex: number) => {
+  const addEvent = async () => {
     if (!newEventTitle.trim() || !user || !selectedWeek) return
-    const newEvent = { text: newEventTitle.trim(), description: newEventDesc.trim(), photos: newEventPhotos }
+    const found = weekDates.findIndex(d => toInputDate(d) === newEventDate)
+    const dayIndex = found >= 0 ? found : 0
+    const newEvent = { text: newEventTitle.trim(), description: newEventDesc.trim(), photos: newEventPhotos, time: newEventTime }
     const updatedDays = days.map((d, i) =>
       i === dayIndex ? { events: [...(d?.events || []), newEvent] } : d
     )
@@ -362,7 +394,10 @@ export default function CalendarPage() {
   const startYear = birthDate ? birthDate.getFullYear() : null
   const years = startYear ? Array.from({ length: END_YEAR - startYear + 1 }, (_, i) => startYear + i) : []
   const weekDates = selectedWeek ? getWeekDates(selectedWeek.year, selectedWeek.week) : []
-  const totalEvents = days.reduce((acc, d) => acc + (d?.events?.length || 0), 0)
+  // Tous les évènements de la semaine, triés : jour, puis heure (sans heure en premier), puis ordre d'ajout
+  const allEvents = days
+    .flatMap((d, dayIndex) => (d?.events || []).map((event: any, eventIndex: number) => ({ event, dayIndex, eventIndex })))
+    .sort((a, b) => a.dayIndex - b.dayIndex || (a.event.time || '').localeCompare(b.event.time || '') || a.eventIndex - b.eventIndex)
   const { cellSize, cellGap, yearColWidth, sideMargin } = layout
 
   // Garde les numéros de semaines alignés avec la grille pendant le défilement horizontal
@@ -745,154 +780,218 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Popup semaine */}
+      {/* Popup semaine : évènements en vrac, triés par ordre chronologique, médias visibles directement */}
       {selectedWeek && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex border-b border-zinc-800 sticky top-0 bg-zinc-900 rounded-t-2xl z-10">
-              <button onClick={() => setShowDays(false)}
-                className={`flex-1 py-3 text-sm font-medium transition ${!showDays ? 'text-white border-b-2 border-white' : 'text-zinc-500'}`}>
-                {t('week.overview')}
-              </button>
-              <button onClick={() => setShowDays(true)}
-                className={`flex-1 py-3 text-sm font-medium transition ${showDays ? 'text-white border-b-2 border-white' : 'text-zinc-500'}`}>
-                {t('week.days')}
-              </button>
-              <button onClick={() => setSelectedWeek(null)} className="px-4 text-zinc-500 hover:text-white text-lg">✕</button>
+            <div className="flex items-center justify-between border-b border-zinc-800 sticky top-0 bg-zinc-900 rounded-t-2xl z-10 px-5 py-3">
+              <p className="text-sm font-medium">{t('common.weekOfYear', { n: selectedWeek.week, year: selectedWeek.year })}</p>
+              <button onClick={() => setSelectedWeek(null)} className="text-zinc-500 hover:text-white text-lg">✕</button>
             </div>
 
             <div className="p-5">
-              <p className="text-zinc-500 text-xs mb-4">{t('common.weekOfYear', { n: selectedWeek.week, year: selectedWeek.year })}</p>
+              {/* Choix de la disposition */}
+              <div className="flex items-center gap-1.5 mb-4 overflow-x-auto">
+                <span className="text-zinc-500 text-xs mr-1 whitespace-nowrap">{t('layout.title')}</span>
+                {LAYOUTS.map(l => (
+                  <button key={l.key} onClick={() => chooseLayout(l.key)}
+                    className={`px-2.5 py-1 rounded-lg text-xs border whitespace-nowrap transition ${eventLayout === l.key ? 'border-white text-white' : 'border-zinc-700 text-zinc-400'}`}>
+                    {l.icon} {t(l.labelKey)}
+                  </button>
+                ))}
+              </div>
 
-              {!showDays ? (
-                <div>
-                  {totalEvents === 0 ? (
-                    <div className="text-center py-12">
-                      <p className="text-zinc-600 text-sm mb-3">{t('week.none')}</p>
-                      <button onClick={() => setShowDays(true)}
-                        className="text-sm px-4 py-2 rounded-xl border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 transition">
-                        + {t('week.addEvents')}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-5">
-                      {dayNames.map((dayName, dayIndex) => {
-                        const date = weekDates[dayIndex]
-                        const events = days[dayIndex]?.events || []
-                        if (events.length === 0) return null
+              {allEvents.length === 0 ? (
+                <p className="text-zinc-600 text-sm text-center py-6">{t('week.none')}</p>
+              ) : (() => {
+                const stamp = (ev: any) => fmtStamp(weekDates[ev.dayIndex], ev.event.time)
+                const del = (ev: any, extra = '') => (
+                  <button onClick={() => deleteEventFromDay(ev.dayIndex, ev.eventIndex)} aria-label="delete"
+                    className={`text-zinc-500 hover:text-red-400 text-sm flex-shrink-0 transition ${extra}`}>🗑️</button>
+                )
+
+                if (eventLayout === 'journal') {
+                  return (
+                    <div className="space-y-6 mb-5">
+                      {allEvents.map(ev => {
+                        const photos: string[] = ev.event.photos || []
                         return (
-                          <div key={dayIndex}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-sm font-bold">{dayName}</span>
-                              {date && <span className="text-zinc-600 text-xs">{fmtDayMonth(date)}</span>}
+                          <div key={`${ev.dayIndex}-${ev.eventIndex}`}>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-zinc-500 text-xs">{stamp(ev)}</p>
+                                <p className="text-base font-bold">{ev.event.text}</p>
+                              </div>
+                              {del(ev)}
                             </div>
-                            <div className="space-y-2 pl-3 border-l border-zinc-800">
-                              {events.map((event: any, eventIndex: number) => (
-                                <div key={eventIndex} className="bg-zinc-800/50 rounded-xl p-3">
-                                  <p className="text-sm font-medium text-white">• {event.text}</p>
-                                  {event.description && <p className="text-zinc-400 text-xs mt-1">{event.description}</p>}
-                                  {event.photos?.length > 0 && (
-                                    <div className="grid grid-cols-3 gap-1.5 mt-2">
-                                      {event.photos.map((url: string, pi: number) => (
-                                        <img key={pi} src={url} alt="" className="w-full h-14 object-cover rounded-lg" />
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
+                            {photos.length > 0 && (
+                              <div className={`grid gap-1.5 mt-2 ${photos.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                {photos.map((u, i) => (
+                                  <Media key={i} url={u}
+                                    className={`w-full object-cover rounded-xl bg-black ${photos.length === 1 ? 'max-h-80' : 'h-36'} ${photos.length > 1 && photos.length % 2 === 1 && i === 0 ? 'col-span-2 !h-48' : ''}`} />
+                                ))}
+                              </div>
+                            )}
+                            {ev.event.description && <p className="text-zinc-300 text-sm mt-2">{ev.event.description}</p>}
                           </div>
                         )
                       })}
                     </div>
+                  )
+                }
+
+                if (eventLayout === 'mosaic') {
+                  let n = 0
+                  return (
+                    <div className="columns-2 gap-2 mb-5">
+                      {allEvents.flatMap(ev => {
+                        const photos: string[] = ev.event.photos || []
+                        if (photos.length === 0) {
+                          return [(
+                            <div key={`${ev.dayIndex}-${ev.eventIndex}`} className="break-inside-avoid mb-2 rounded-xl bg-zinc-800 p-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-sm font-medium">{ev.event.text}</p>
+                                {del(ev)}
+                              </div>
+                              {ev.event.description && <p className="text-zinc-400 text-xs mt-1">{ev.event.description}</p>}
+                              <p className="text-zinc-500 text-[10px] mt-1">{stamp(ev)}</p>
+                            </div>
+                          )]
+                        }
+                        return photos.map((u, i) => (
+                          <div key={`${ev.dayIndex}-${ev.eventIndex}-${i}`}
+                            className="break-inside-avoid mb-2 relative rounded-xl overflow-hidden bg-zinc-800"
+                            style={{ aspectRatio: RATIOS[n++ % RATIOS.length] }}>
+                            <Media url={u} className="absolute inset-0 w-full h-full object-cover" />
+                            {i === 0 && (
+                              <div className="absolute left-0 right-0 top-0 p-2 pr-9 pb-6 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+                                <p className="text-xs font-semibold">{ev.event.text}</p>
+                                <p className="text-[10px] text-zinc-300">{stamp(ev)}</p>
+                              </div>
+                            )}
+                            {i === 0 && <div className="absolute top-1.5 right-1.5 bg-black/60 rounded-full w-6 h-6 flex items-center justify-center">{del(ev, '!text-xs')}</div>}
+                          </div>
+                        ))
+                      })}
+                    </div>
+                  )
+                }
+
+                if (eventLayout === 'cards') {
+                  return (
+                    <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory pb-2 mb-5">
+                      {allEvents.flatMap(ev => {
+                        const photos: string[] = ev.event.photos || []
+                        const base = 'snap-center flex-shrink-0 w-[86%] h-[60vh] max-h-[460px] rounded-2xl relative overflow-hidden bg-zinc-800'
+                        if (photos.length === 0) {
+                          return [(
+                            <div key={`${ev.dayIndex}-${ev.eventIndex}`} className={`${base} flex flex-col justify-end p-5`}>
+                              <div className="absolute top-3 right-3">{del(ev)}</div>
+                              <p className="text-zinc-500 text-xs">{stamp(ev)}</p>
+                              <p className="text-lg font-bold">{ev.event.text}</p>
+                              {ev.event.description && <p className="text-zinc-400 text-sm mt-1">{ev.event.description}</p>}
+                            </div>
+                          )]
+                        }
+                        return photos.map((u, i) => (
+                          <div key={`${ev.dayIndex}-${ev.eventIndex}-${i}`} className={base}>
+                            <Media url={u} className="absolute inset-0 w-full h-full object-cover" />
+                            <div className={`absolute inset-x-0 bottom-0 p-4 pt-14 bg-gradient-to-t from-black/85 to-transparent pointer-events-none ${isVideo(u) ? 'pb-14' : ''}`}>
+                              <p className="text-zinc-300 text-xs">{stamp(ev)}</p>
+                              <p className="text-base font-bold">{ev.event.text}</p>
+                              {ev.event.description && i === 0 && <p className="text-zinc-300 text-xs mt-0.5">{ev.event.description}</p>}
+                            </div>
+                            <div className="absolute top-3 right-3 bg-black/60 rounded-full w-7 h-7 flex items-center justify-center">{del(ev)}</div>
+                          </div>
+                        ))
+                      })}
+                    </div>
+                  )
+                }
+
+                // album
+                return (
+                  <div className="space-y-5 mb-5 py-2">
+                    {allEvents.map((ev, idx) => {
+                      const photos: string[] = ev.event.photos || []
+                      const tilt = { transform: `rotate(${idx % 2 ? 1.6 : -1.8}deg)` }
+                      if (photos.length === 0) {
+                        return (
+                          <div key={`${ev.dayIndex}-${ev.eventIndex}`} style={tilt}
+                            className="bg-amber-200 text-amber-950 text-sm p-3 w-4/5 mx-auto shadow-lg flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-medium">{ev.event.text}</p>
+                              {ev.event.description && <p className="text-xs mt-1">{ev.event.description}</p>}
+                              <p className="text-[10px] opacity-70 mt-1">{stamp(ev)}</p>
+                            </div>
+                            {del(ev)}
+                          </div>
+                        )
+                      }
+                      return (
+                        <div key={`${ev.dayIndex}-${ev.eventIndex}`} style={tilt}
+                          className="bg-zinc-100 text-zinc-900 p-2 pb-3 rounded-sm shadow-lg w-[92%] mx-auto">
+                          <div className={`grid gap-1.5 ${photos.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                            {photos.map((u, i) => (
+                              <Media key={i} url={u}
+                                className={`w-full object-cover bg-black ${photos.length === 1 ? 'max-h-72' : 'h-32'} ${photos.length > 1 && photos.length % 2 === 1 && i === 0 ? 'col-span-2 !h-44' : ''}`} />
+                            ))}
+                          </div>
+                          <div className="flex items-start justify-between gap-2 mt-2">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm" style={{ fontFamily: 'Georgia, serif' }}>{ev.event.text}</p>
+                              {ev.event.description && <p className="text-xs text-zinc-600 mt-0.5">{ev.event.description}</p>}
+                              <p className="text-[10px] text-zinc-500 mt-0.5">{stamp(ev)}</p>
+                            </div>
+                            {del(ev)}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+
+              {/* Nouvel évènement */}
+              <div className="bg-zinc-800 rounded-xl p-3 space-y-2">
+                <p className="text-zinc-400 text-xs font-medium">+ {t('week.newEvent')}</p>
+                <div className="flex gap-2">
+                  <input type="date" value={newEventDate} onChange={e => setNewEventDate(e.target.value)}
+                    min={weekDates[0] ? toInputDate(weekDates[0]) : undefined}
+                    max={weekDates[6] ? toInputDate(weekDates[6]) : undefined}
+                    className="flex-1 min-w-0 bg-zinc-900 text-white p-2 rounded-lg outline-none text-sm border border-zinc-700 focus:border-zinc-500" />
+                  <input type="time" value={newEventTime} onChange={e => setNewEventTime(e.target.value)}
+                    className="bg-zinc-900 text-white p-2 rounded-lg outline-none text-sm border border-zinc-700 focus:border-zinc-500" />
+                </div>
+                <input type="text" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addEvent()}
+                  placeholder={t('week.titlePh')}
+                  className="w-full bg-zinc-900 text-white p-2 rounded-lg outline-none text-sm border border-zinc-700 focus:border-zinc-500" />
+                <textarea value={newEventDesc} onChange={e => setNewEventDesc(e.target.value)}
+                  placeholder={t('week.descPh')} rows={2}
+                  className="w-full bg-zinc-900 text-white p-2 rounded-lg outline-none text-sm border border-zinc-700 focus:border-zinc-500 resize-none" />
+                <div>
+                  <label className="flex items-center gap-2 bg-zinc-900 text-zinc-400 p-2 rounded-lg cursor-pointer hover:bg-zinc-700 text-xs border border-zinc-700 transition">
+                    📷 {uploadingEvent ? t('theme.uploading') : `${t('week.addMedia')}${newEventPhotos.length > 0 ? ` (${newEventPhotos.length})` : ''}`}
+                    <input type="file" accept="image/*,video/*" multiple onChange={uploadEventPhoto} className="hidden" />
+                  </label>
+                  {newEventPhotos.length > 0 && (
+                    <div className="grid grid-cols-3 gap-1.5 mt-2">
+                      {newEventPhotos.map((url, pi) => (
+                        <div key={pi} className="relative">
+                          <Media url={url} controls={false} className="w-full h-16 object-cover rounded-lg" />
+                          <button onClick={() => setNewEventPhotos(prev => prev.filter((_, j) => j !== pi))}
+                            className="absolute top-0.5 right-0.5 bg-black/70 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center">×</button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {dayNames.map((dayName, dayIndex) => {
-                    const date = weekDates[dayIndex]
-                    const dayData = days[dayIndex] || { events: [] }
-                    const isOpen = selectedDay === dayIndex
-                    return (
-                      <div key={dayIndex} className="bg-zinc-800 rounded-xl overflow-hidden">
-                        <button
-                          onClick={() => { setSelectedDay(isOpen ? null : dayIndex); resetEventForm() }}
-                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-700 transition">
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-medium">{dayName}</span>
-                            {date && <span className="text-zinc-500 text-xs">{fmtDayMonth(date)}</span>}
-                            {dayData.events?.length > 0 && (
-                              <span className="bg-zinc-700 text-zinc-300 text-xs px-1.5 py-0.5 rounded-full">{dayData.events.length}</span>
-                            )}
-                          </div>
-                          <span className="text-zinc-500 text-xs">{isOpen ? '▲' : '▼'}</span>
-                        </button>
-                        {isOpen && (
-                          <div className="px-4 pb-4">
-                            {dayData.events?.length > 0 && (
-                              <div className="space-y-2 mb-4">
-                                {dayData.events.map((event: any, eventIndex: number) => (
-                                  <div key={eventIndex} className="bg-zinc-900 rounded-xl p-3">
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                          <div className="w-1.5 h-1.5 rounded-full bg-white flex-shrink-0" />
-                                          <p className="text-sm font-medium text-zinc-200">{event.text}</p>
-                                        </div>
-                                        {event.description && <p className="text-zinc-500 text-xs mt-1 ml-3.5">{event.description}</p>}
-                                        {event.photos?.length > 0 && (
-                                          <div className="grid grid-cols-3 gap-1.5 mt-2 ml-3.5">
-                                            {event.photos.map((url: string, pi: number) => (
-                                              <img key={pi} src={url} alt="" className="w-full h-12 object-cover rounded-lg" />
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                      <button onClick={() => deleteEventFromDay(dayIndex, eventIndex)}
-                                        className="text-zinc-600 hover:text-red-400 text-sm flex-shrink-0 transition">🗑️</button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            <div className="bg-zinc-900 rounded-xl p-3 space-y-2">
-                              <p className="text-zinc-500 text-xs font-medium">+ {t('week.newEvent')}</p>
-                              <input type="text" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && addEventToDay(dayIndex)}
-                                placeholder={t('week.titlePh')}
-                                className="w-full bg-zinc-800 text-white p-2 rounded-lg outline-none text-sm border border-zinc-700 focus:border-zinc-500" />
-                              <textarea value={newEventDesc} onChange={e => setNewEventDesc(e.target.value)}
-                                placeholder={t('week.descPh')} rows={2}
-                                className="w-full bg-zinc-800 text-white p-2 rounded-lg outline-none text-sm border border-zinc-700 focus:border-zinc-500 resize-none" />
-                              <div>
-                                <label className="flex items-center gap-2 bg-zinc-800 text-zinc-400 p-2 rounded-lg cursor-pointer hover:bg-zinc-700 text-xs border border-zinc-700 transition">
-                                  📷 {uploadingEvent ? t('theme.uploading') : `${t('week.addPhotos')}${newEventPhotos.length > 0 ? ` (${newEventPhotos.length})` : ''}`}
-                                  <input type="file" accept="image/*" multiple onChange={uploadEventPhoto} className="hidden" />
-                                </label>
-                                {newEventPhotos.length > 0 && (
-                                  <div className="grid grid-cols-3 gap-1.5 mt-2">
-                                    {newEventPhotos.map((url, pi) => (
-                                      <div key={pi} className="relative">
-                                        <img src={url} alt="" className="w-full h-12 object-cover rounded-lg" />
-                                        <button onClick={() => setNewEventPhotos(prev => prev.filter((_, j) => j !== pi))}
-                                          className="absolute top-0.5 right-0.5 bg-black/70 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center">×</button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                              <button onClick={() => addEventToDay(dayIndex)} disabled={!newEventTitle.trim()}
-                                className="w-full bg-white text-black font-bold p-2 rounded-lg text-sm hover:bg-zinc-200 transition disabled:opacity-40">
-                                {t('week.add')}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                <button onClick={addEvent} disabled={!newEventTitle.trim() || uploadingEvent}
+                  className="w-full bg-white text-black font-bold p-2 rounded-lg text-sm hover:bg-zinc-200 transition disabled:opacity-40">
+                  {t('week.add')}
+                </button>
+              </div>
             </div>
           </div>
         </div>

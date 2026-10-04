@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Hifadhi wasifu",
   "home.saved": "Wasifu umehifadhiwa!",
   "home.error": "Hitilafu: ",
+  "layout.title": "Mpangilio",
+  "layout.journal": "Shajara",
+  "layout.mosaic": "Mozaiki",
+  "layout.cards": "Kadi",
+  "layout.album": "Albamu",
+  "week.addMedia": "Ongeza picha au video",
 }
 
 export default dict

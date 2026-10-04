@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Guardar perfil",
   "home.saved": "¡Perfil guardado!",
   "home.error": "Error: ",
+  "layout.title": "Diseño",
+  "layout.journal": "Diario",
+  "layout.mosaic": "Mosaico",
+  "layout.cards": "Tarjetas",
+  "layout.album": "Álbum",
+  "week.addMedia": "Añadir fotos o vídeos",
 }
 
 export default dict

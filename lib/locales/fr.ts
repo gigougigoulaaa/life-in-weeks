@@ -134,6 +134,12 @@ const fr = {
   'home.saveProfile': 'Sauvegarder le profil',
   'home.saved': 'Profil sauvegardé !',
   'home.error': 'Erreur : ',
+  "layout.title": "Disposition",
+  "layout.journal": "Journal",
+  "layout.mosaic": "Mosaïque",
+  "layout.cards": "Cartes",
+  "layout.album": "Album",
+  "week.addMedia": "Ajouter des photos ou vidéos",
 }
 
 export default fr

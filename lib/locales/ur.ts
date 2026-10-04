@@ -117,6 +117,12 @@ const dict = {
   "home.saveProfile": "پروفائل محفوظ کریں",
   "home.saved": "پروفائل محفوظ ہو گیا!",
   "home.error": "خرابی: ",
+  "layout.title": "ترتیب",
+  "layout.journal": "روزنامچہ",
+  "layout.mosaic": "موزیک",
+  "layout.cards": "کارڈز",
+  "layout.album": "البم",
+  "week.addMedia": "تصاویر یا ویڈیوز شامل کریں",
 }
 
 export default dict

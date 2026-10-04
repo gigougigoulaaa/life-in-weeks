@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "ပရိုဖိုင် သိမ်းရန်",
   "home.saved": "ပရိုဖိုင် သိမ်းပြီးပါပြီ။",
   "home.error": "အမှား: ",
+  "layout.title": "အပြင်အဆင်",
+  "layout.journal": "ဂျာနယ်",
+  "layout.mosaic": "မိုဇက်",
+  "layout.cards": "ကတ်များ",
+  "layout.album": "အယ်လ်ဘမ်",
+  "week.addMedia": "ဓာတ်ပုံ သို့မဟုတ် ဗီဒီယို ထည့်ရန်",
 }
 
 export default dict

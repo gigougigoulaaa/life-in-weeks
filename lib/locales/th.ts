@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "บันทึกโปรไฟล์",
   "home.saved": "บันทึกโปรไฟล์แล้ว!",
   "home.error": "เกิดข้อผิดพลาด: ",
+  "layout.title": "เลย์เอาต์",
+  "layout.journal": "ไดอารี่",
+  "layout.mosaic": "โมเสก",
+  "layout.cards": "การ์ด",
+  "layout.album": "อัลบั้ม",
+  "week.addMedia": "เพิ่มรูปภาพหรือวิดีโอ",
 }
 
 export default dict

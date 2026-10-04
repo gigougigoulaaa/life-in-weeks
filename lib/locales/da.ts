@@ -117,6 +117,12 @@ const dict = {
   "home.saveProfile": "Gem profil",
   "home.saved": "Profil gemt!",
   "home.error": "Fejl: ",
+  "layout.title": "Layout",
+  "layout.journal": "Journal",
+  "layout.mosaic": "Mosaik",
+  "layout.cards": "Kort",
+  "layout.album": "Album",
+  "week.addMedia": "Tilføj billeder eller videoer",
 }
 
 export default dict

@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Зберегти профіль",
   "home.saved": "Профіль збережено!",
   "home.error": "Помилка: ",
+  "layout.title": "Вигляд",
+  "layout.journal": "Щоденник",
+  "layout.mosaic": "Мозаїка",
+  "layout.cards": "Картки",
+  "layout.album": "Альбом",
+  "week.addMedia": "Додати фото або відео",
 }
 
 export default dict

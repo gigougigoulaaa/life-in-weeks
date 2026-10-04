@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Profili kaydet",
   "home.saved": "Profil kaydedildi!",
   "home.error": "Hata: ",
+  "layout.title": "Düzen",
+  "layout.journal": "Günlük",
+  "layout.mosaic": "Mozaik",
+  "layout.cards": "Kartlar",
+  "layout.album": "Albüm",
+  "week.addMedia": "Fotoğraf veya video ekle",
 }
 
 export default dict

@@ -117,6 +117,12 @@ const dict = {
   "home.saveProfile": "پروفایل خوندي کړئ",
   "home.saved": "پروفایل خوندي شو!",
   "home.error": "تېروتنه: ",
+  "layout.title": "ترتیب",
+  "layout.journal": "ورځپاڼه",
+  "layout.mosaic": "موزایک",
+  "layout.cards": "کارتونه",
+  "layout.album": "البم",
+  "week.addMedia": "انځورونه یا ویډیوګانې اضافه کړئ",
 }
 
 export default dict

@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "프로필 저장",
   "home.saved": "프로필이 저장되었어요!",
   "home.error": "오류: ",
+  "layout.title": "레이아웃",
+  "layout.journal": "저널",
+  "layout.mosaic": "모자이크",
+  "layout.cards": "카드",
+  "layout.album": "앨범",
+  "week.addMedia": "사진 또는 동영상 추가",
 }
 
 export default dict

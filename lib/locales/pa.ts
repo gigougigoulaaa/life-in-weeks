@@ -117,6 +117,12 @@ const dict = {
   "home.saveProfile": "ਪ੍ਰੋਫਾਈਲ ਸੇਵ ਕਰੋ",
   "home.saved": "ਪ੍ਰੋਫਾਈਲ ਸੇਵ ਹੋ ਗਿਆ!",
   "home.error": "ਗਲਤੀ: ",
+  "layout.title": "ਲੇਆਉਟ",
+  "layout.journal": "ਜਰਨਲ",
+  "layout.mosaic": "ਮੋਜ਼ੇਕ",
+  "layout.cards": "ਕਾਰਡ",
+  "layout.album": "ਐਲਬਮ",
+  "week.addMedia": "ਫ਼ੋਟੋਆਂ ਜਾਂ ਵੀਡੀਓ ਜੋੜੋ",
 }
 
 export default dict

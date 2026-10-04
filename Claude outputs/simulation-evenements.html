@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulation évènements en vrac</title>
+<style>
+:root{--bg:#000;--card:#18181b;--card2:#27272a;--line:#3f3f46;--mut:#71717a;--txt:#fff;--acc:#fbbf24}
+*{box-sizing:border-box}body{margin:0;background:#0b0b0d;color:var(--txt);font-family:system-ui,sans-serif;padding:16px}
+h1{font-size:18px;margin:0 0 4px}p.sub{color:var(--mut);font-size:13px;margin:0 0 14px}
+.bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.bar button{background:var(--card);color:#d4d4d8;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer}
+.bar button.on{border-color:#fff;color:#fff}
+.tog{display:flex;align-items:center;gap:8px;color:#a1a1aa;font-size:13px;margin-bottom:14px}
+.phone{max-width:390px;margin:0 auto;background:var(--card);border-radius:22px;border:1px solid var(--line);overflow:hidden}
+.head{display:flex;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--card2);font-size:14px}
+.body{padding:16px;max-height:640px;overflow:auto}
+.stamp{color:var(--mut);font-size:11px}
+.hide .stamp{display:none}
+.ph{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.ph i{display:block;height:56px;border-radius:8px;background:linear-gradient(135deg,#52525b,#3f3f46)}
+.ph i:nth-child(2){background:linear-gradient(135deg,#0369a1,#0c4a6e)}.ph i:nth-child(3){background:linear-gradient(135deg,#9a3412,#7c2d12)}
+.add{margin-top:14px;background:var(--card2);border-radius:12px;padding:10px;font-size:13px;color:#a1a1aa}
+.opt{display:none}.opt.on{display:block}
+/* A timeline */
+.tl{position:relative;padding-left:22px}.tl:before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line)}
+.tl .e{position:relative;margin-bottom:16px}.tl .e:before{content:"";position:absolute;left:-21px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--acc);border:2px solid var(--card)}
+.tl b{display:block;font-size:14px}.tl small{color:#a1a1aa;font-size:12px}
+/* B cards */
+.cards .e{background:var(--card2);border-radius:14px;padding:12px;margin-bottom:10px}
+.cards .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.cards b{font-size:14px}.cards .badge{background:#000;border-radius:999px;padding:2px 8px;font-size:11px;color:var(--acc)}
+.cards small{display:block;color:#a1a1aa;font-size:12px;margin-top:4px}
+/* C compact */
+.rows .e{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--card2)}
+.rows .t{width:44px;flex-shrink:0;color:var(--acc);font-size:12px;font-variant-numeric:tabular-nums;padding-top:2px}
+.rows b{font-size:14px;font-weight:500}.rows small{display:block;color:var(--mut);font-size:12px;margin-top:2px}
+/* D feed */
+.feed .e{margin-bottom:18px}
+.feed .big{height:120px;border-radius:14px;background:linear-gradient(135deg,#0369a1,#1e3a8a);margin-bottom:8px}
+.feed .big.b2{background:linear-gradient(135deg,#9a3412,#7f1d1d)}
+.feed b{font-size:15px}.feed small{display:block;color:#a1a1aa;font-size:12px;margin-top:3px}
+.feed .stamp{margin-bottom:2px}
+.note{max-width:390px;margin:14px auto 0;color:var(--mut);font-size:12px;text-align:center}
+</style></head><body>
+<h1>Évènements en vrac : 4 dispositions</h1>
+<p class="sub">Plus aucun découpage par jour. Choisis une disposition ci-dessous.</p>
+<div class="bar" id="bar">
+ <button class="on" data-o="a">A · Fil du temps</button>
+ <button data-o="b">B · Cartes</button>
+ <button data-o="c">C · Liste compacte</button>
+ <button data-o="d">D · Fil photo</button>
+</div>
+<label class="tog"><input type="checkbox" id="stamp" checked> Afficher la date et l'heure sur chaque évènement (décoche : l'ordre seul parle)</label>
+
+<div class="phone" id="phone">
+ <div class="head"><span>Semaine 41 — 2026</span><span>✕</span></div>
+ <div class="body">
+
+ <div class="opt on" data-o="a"><div class="tl">
+  <div class="e"><span class="stamp">lun. 5 oct · 09:00</span><b>Rendez-vous dentiste</b></div>
+  <div class="e"><span class="stamp">lun. 5 oct · 19:30</span><b>Footing au parc</b><small>8 km, belle lumière</small></div>
+  <div class="e"><span class="stamp">mer. 7 oct</span><b>Anniversaire de Léa</b><small>Gâteau au citron</small><div class="ph"><i></i><i></i><i></i></div></div>
+  <div class="e"><span class="stamp">sam. 10 oct · 14:00</span><b>Week-end à Cognac</b></div>
+ </div></div>
+
+ <div class="opt cards" data-o="b">
+  <div class="e"><div class="top"><b>Rendez-vous dentiste</b><span class="badge stamp">5 oct · 09:00</span></div></div>
+  <div class="e"><div class="top"><b>Footing au parc</b><span class="badge stamp">5 oct · 19:30</span></div><small>8 km, belle lumière</small></div>
+  <div class="e"><div class="top"><b>Anniversaire de Léa</b><span class="badge stamp">7 oct</span></div><small>Gâteau au citron</small><div class="ph"><i></i><i></i><i></i></div></div>
+  <div class="e"><div class="top"><b>Week-end à Cognac</b><span class="badge stamp">10 oct · 14:00</span></div></div>
+ </div>
+
+ <div class="opt rows" data-o="c">
+  <div class="e"><span class="t stamp">5/10<br>09:00</span><div><b>Rendez-vous dentiste</b></div></div>
+  <div class="e"><span class="t stamp">5/10<br>19:30</span><div><b>Footing au parc</b><small>8 km, belle lumière</small></div></div>
+  <div class="e"><span class="t stamp">7/10</span><div><b>Anniversaire de Léa</b><small>Gâteau au citron · 3 photos</small></div></div>
+  <div class="e"><span class="t stamp">10/10<br>14:00</span><div><b>Week-end à Cognac</b></div></div>
+ </div>
+
+ <div class="opt feed" data-o="d">
+  <div class="e"><span class="stamp">5 oct · 09:00</span><br><b>Rendez-vous dentiste</b></div>
+  <div class="e"><span class="stamp">5 oct · 19:30</span><br><div class="big b2"></div><b>Footing au parc</b><small>8 km, belle lumière</small></div>
+  <div class="e"><span class="stamp">7 oct</span><br><div class="big"></div><b>Anniversaire de Léa</b><small>Gâteau au citron</small></div>
+  <div class="e"><span class="stamp">10 oct · 14:00</span><br><b>Week-end à Cognac</b></div>
+ </div>
+
+ <div class="add">+ Nouvel évènement (date, heure optionnelle, titre, photos)</div>
+ </div>
+</div>
+<p class="note">Dans toutes les versions, les évènements restent classés du plus ancien au plus récent.</p>
+<script>
+const opts=document.querySelectorAll('.opt'),btns=document.querySelectorAll('#bar button');
+btns.forEach(b=>b.onclick=()=>{btns.forEach(x=>x.classList.toggle('on',x===b));opts.forEach(o=>o.classList.toggle('on',o.dataset.o===b.dataset.o))});
+document.getElementById('stamp').onchange=e=>document.getElementById('phone').classList.toggle('hide',!e.target.checked);
+</script></body></html>

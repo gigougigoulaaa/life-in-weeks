@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "プロフィールを保存",
   "home.saved": "プロフィールを保存しました！",
   "home.error": "エラー：",
+  "layout.title": "レイアウト",
+  "layout.journal": "ジャーナル",
+  "layout.mosaic": "モザイク",
+  "layout.cards": "カード",
+  "layout.album": "アルバム",
+  "week.addMedia": "写真や動画を追加",
 }
 
 export default dict

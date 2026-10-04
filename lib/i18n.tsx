@@ -18,6 +18,7 @@ type I18nValue = {
   fmtDayMonth: (d: Date) => string
   fmtShortDate: (date: string) => string
   fmtNumber: (n: number) => string
+  fmtStamp: (d: Date | undefined, time?: string) => string
 }
 
 const I18nContext = createContext<I18nValue | null>(null)
@@ -122,8 +123,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const fmtShortDate = (date: string) =>
       new Date(date).toLocaleDateString(locale, { day: 'numeric', month: 'short' })
     const fmtNumber = (n: number) => n.toLocaleString(locale)
+    // « lun. 5 oct · 19:30 » dans la langue choisie
+    const fmtStamp = (d: Date | undefined, time?: string) => {
+      const day = d ? d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }) : ''
+      return [day, time].filter(Boolean).join(' · ')
+    }
 
-    return { lang, setLang, t, dir, timeAgo, yearsAgo, dayNames, fmtDayMonth, fmtShortDate, fmtNumber }
+    return { lang, setLang, t, dir, timeAgo, yearsAgo, dayNames, fmtDayMonth, fmtShortDate, fmtNumber, fmtStamp }
   }, [lang, dict, dir, setLang])
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>

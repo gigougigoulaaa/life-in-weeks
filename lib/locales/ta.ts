@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "சுயவிவரத்தைச் சேமி",
   "home.saved": "சுயவிவரம் சேமிக்கப்பட்டது!",
   "home.error": "பிழை: ",
+  "layout.title": "தளவமைப்பு",
+  "layout.journal": "நாட்குறிப்பு",
+  "layout.mosaic": "மொசைக்",
+  "layout.cards": "அட்டைகள்",
+  "layout.album": "ஆல்பம்",
+  "week.addMedia": "புகைப்படங்கள் அல்லது வீடியோக்களைச் சேர்",
 }
 
 export default dict

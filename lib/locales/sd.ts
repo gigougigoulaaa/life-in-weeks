@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "پروفائل محفوظ ڪريو",
   "home.saved": "پروفائل محفوظ ٿي ويو!",
   "home.error": "غلطي: ",
+  "layout.title": "ترتيب",
+  "layout.journal": "جرنل",
+  "layout.mosaic": "موزائيڪ",
+  "layout.cards": "ڪارڊ",
+  "layout.album": "البم",
+  "week.addMedia": "تصويرون يا وڊيوز شامل ڪريو",
 }
 
 export default dict

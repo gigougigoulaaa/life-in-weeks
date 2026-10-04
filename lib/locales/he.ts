@@ -117,6 +117,12 @@ const dict = {
   "home.saveProfile": "שמירת פרופיל",
   "home.saved": "הפרופיל נשמר!",
   "home.error": "שגיאה: ",
+  "layout.title": "פריסה",
+  "layout.journal": "יומן",
+  "layout.mosaic": "פסיפס",
+  "layout.cards": "כרטיסים",
+  "layout.album": "אלבום",
+  "week.addMedia": "הוספת תמונות או סרטונים",
 }
 
 export default dict

@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Profîlê tomar bike",
   "home.saved": "Profîl hate tomarkirin!",
   "home.error": "Çewtî: ",
+  "layout.title": "Çêkirin",
+  "layout.journal": "Rojnivîk",
+  "layout.mosaic": "Mozaîk",
+  "layout.cards": "Kart",
+  "layout.album": "Albûm",
+  "week.addMedia": "Wêne an vîdyo zêde bike",
 }
 
 export default dict

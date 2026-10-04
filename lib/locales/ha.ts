@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Ajiye bayani",
   "home.saved": "An ajiye bayani!",
   "home.error": "Kuskure: ",
+  "layout.title": "Tsari",
+  "layout.journal": "Littafin rubutu",
+  "layout.mosaic": "Mosaic",
+  "layout.cards": "Katuna",
+  "layout.album": "Albam",
+  "week.addMedia": "Ƙara hotuna ko bidiyo",
 }
 
 export default dict

@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Gcina iphrofayela",
   "home.saved": "Iphrofayela igciniwe!",
   "home.error": "Iphutha: ",
+  "layout.title": "Isendlalelo",
+  "layout.journal": "Ijenali",
+  "layout.mosaic": "Imosaikhi",
+  "layout.cards": "Amakhadi",
+  "layout.album": "I-albhamu",
+  "week.addMedia": "Engeza izithombe noma amavidiyo",
 }
 
 export default dict

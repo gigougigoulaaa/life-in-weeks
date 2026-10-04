@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Tallenna profiili",
   "home.saved": "Profiili tallennettu!",
   "home.error": "Virhe: ",
+  "layout.title": "Asettelu",
+  "layout.journal": "Päiväkirja",
+  "layout.mosaic": "Mosaiikki",
+  "layout.cards": "Kortit",
+  "layout.album": "Albumi",
+  "week.addMedia": "Lisää kuvia tai videoita",
 }
 
 export default dict

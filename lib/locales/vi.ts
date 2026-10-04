@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Lưu hồ sơ",
   "home.saved": "Đã lưu hồ sơ!",
   "home.error": "Lỗi: ",
+  "layout.title": "Bố cục",
+  "layout.journal": "Nhật ký",
+  "layout.mosaic": "Mosaic",
+  "layout.cards": "Thẻ",
+  "layout.album": "Album",
+  "week.addMedia": "Thêm ảnh hoặc video",
 }
 
 export default dict

@@ -117,6 +117,12 @@ const dict = {
   "home.saveProfile": "Сачувај профил",
   "home.saved": "Профил је сачуван!",
   "home.error": "Грешка: ",
+  "layout.title": "Распоред",
+  "layout.journal": "Дневник",
+  "layout.mosaic": "Мозаик",
+  "layout.cards": "Картице",
+  "layout.album": "Албум",
+  "week.addMedia": "Додај фотографије или видео снимке",
 }
 
 export default dict

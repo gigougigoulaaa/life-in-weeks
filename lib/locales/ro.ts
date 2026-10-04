@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Salvează profilul",
   "home.saved": "Profil salvat!",
   "home.error": "Eroare: ",
+  "layout.title": "Aspect",
+  "layout.journal": "Jurnal",
+  "layout.mosaic": "Mozaic",
+  "layout.cards": "Carduri",
+  "layout.album": "Album",
+  "week.addMedia": "Adaugă fotografii sau videoclipuri",
 }
 
 export default dict

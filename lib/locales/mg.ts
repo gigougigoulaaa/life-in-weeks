@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Tahirizo ny mombamomba",
   "home.saved": "Voatahiry ny mombamomba!",
   "home.error": "Hadisoana: ",
+  "layout.title": "Fanamboarana",
+  "layout.journal": "Gazety",
+  "layout.mosaic": "Mozaika",
+  "layout.cards": "Karatra",
+  "layout.album": "Albôma",
+  "week.addMedia": "Hanampy sary na horonan-tsary",
 }
 
 export default dict

@@ -117,6 +117,12 @@ const dict = {
   "home.saveProfile": "प्रोफाइल सेभ गर्नुहोस्",
   "home.saved": "प्रोफाइल सेभ भयो!",
   "home.error": "त्रुटि: ",
+  "layout.title": "लेआउट",
+  "layout.journal": "जर्नल",
+  "layout.mosaic": "मोजाइक",
+  "layout.cards": "कार्ड",
+  "layout.album": "एल्बम",
+  "week.addMedia": "फोटो वा भिडियो थप्नुहोस्",
 }
 
 export default dict

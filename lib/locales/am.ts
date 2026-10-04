@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "መገለጫ አስቀምጥ",
   "home.saved": "መገለጫ ተቀምጧል!",
   "home.error": "ስህተት: ",
+  "layout.title": "አቀማመጥ",
+  "layout.journal": "ማስታወሻ",
+  "layout.mosaic": "ሞዛይክ",
+  "layout.cards": "ካርዶች",
+  "layout.album": "አልበም",
+  "week.addMedia": "ፎቶዎችን ወይም ቪዲዮዎችን ያክሉ",
 }
 
 export default dict

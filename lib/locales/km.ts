@@ -117,6 +117,12 @@ const dict = {
   "home.saveProfile": "រក្សាទុកប្រវត្តិរូប",
   "home.saved": "បានរក្សាទុកប្រវត្តិរូប!",
   "home.error": "កំហុស: ",
+  "layout.title": "ប្លង់",
+  "layout.journal": "ទិនានុប្បវត្តិ",
+  "layout.mosaic": "ម៉ូស៊ាក",
+  "layout.cards": "កាត",
+  "layout.album": "អាល់ប៊ុម",
+  "week.addMedia": "បន្ថែមរូបថត ឬវីដេអូ",
 }
 
 export default dict

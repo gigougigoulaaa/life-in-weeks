@@ -117,6 +117,12 @@ const dict = {
   "home.saveProfile": "Chekwaa profaịlụ",
   "home.saved": "Echekwara profaịlụ!",
   "home.error": "Njehie: ",
+  "layout.title": "Nhazi",
+  "layout.journal": "Akwụkwọ ndekọ",
+  "layout.mosaic": "Mosaik",
+  "layout.cards": "Kaadị",
+  "layout.album": "Album",
+  "week.addMedia": "Tinye foto ma ọ bụ vidiyo",
 }
 
 export default dict

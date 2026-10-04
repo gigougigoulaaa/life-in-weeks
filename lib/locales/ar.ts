@@ -117,6 +117,12 @@ const dict = {
   "home.saveProfile": "حفظ الملف الشخصي",
   "home.saved": "تم حفظ الملف الشخصي!",
   "home.error": "خطأ: ",
+  "layout.title": "التخطيط",
+  "layout.journal": "يوميات",
+  "layout.mosaic": "فسيفساء",
+  "layout.cards": "بطاقات",
+  "layout.album": "ألبوم",
+  "week.addMedia": "إضافة صور أو فيديوهات",
 }
 
 export default dict

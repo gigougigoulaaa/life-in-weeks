@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "I-save ang profile",
   "home.saved": "Na-save ang profile!",
   "home.error": "Error: ",
+  "layout.title": "Layout",
+  "layout.journal": "Journal",
+  "layout.mosaic": "Mosaic",
+  "layout.cards": "Mga Card",
+  "layout.album": "Album",
+  "week.addMedia": "Magdagdag ng mga larawan o video",
 }
 
 export default dict

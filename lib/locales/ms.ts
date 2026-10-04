@@ -132,6 +132,12 @@ const dict = {
   "home.saveProfile": "Simpan profil",
   "home.saved": "Profil disimpan!",
   "home.error": "Ralat: ",
+  "layout.title": "Susun atur",
+  "layout.journal": "Jurnal",
+  "layout.mosaic": "Mozek",
+  "layout.cards": "Kad",
+  "layout.album": "Album",
+  "week.addMedia": "Tambah foto atau video",
 }
 
 export default dict
