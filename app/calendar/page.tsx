@@ -24,7 +24,19 @@ function getWeekDates(year: number, week: number): Date[] {
 
 const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
-const THEMES = [
+type ThemeType = {
+  name: string
+  accent: string   // semaine actuelle
+  past: string     // semaines passées
+  bg: string       // fond
+  text?: string    // titre, boutons
+  label?: string   // années et numéros de semaines
+  future?: string  // contour des semaines à venir
+  filled?: string  // semaines remplies
+  memory?: string  // semaines de souvenirs
+}
+
+const THEMES: ThemeType[] = [
   { name: 'Défaut', accent: '#ffffff', past: '#52525b', bg: '#000000' },
   { name: 'Océan', accent: '#38bdf8', past: '#0369a1', bg: '#0c1a2e' },
   { name: 'Forêt', accent: '#4ade80', past: '#166534', bg: '#0a1a0e' },
@@ -35,6 +47,19 @@ const THEMES = [
 ]
 
 const END_YEAR = 2150
+
+// Éléments dont la couleur est modifiable
+const COLOR_FIELDS: { key: keyof ThemeType, label: string }[] = [
+  { key: 'bg', label: 'Fond' },
+  { key: 'text', label: 'Texte (titre, boutons)' },
+  { key: 'label', label: 'Années et numéros de semaines' },
+  { key: 'past', label: 'Semaines passées' },
+  { key: 'accent', label: 'Semaine actuelle' },
+  { key: 'filled', label: 'Semaines remplies' },
+  { key: 'memory', label: 'Semaines de souvenirs' },
+  { key: 'future', label: 'Semaines à venir (contour)' },
+]
+
 const EMPTY_DAYS = () => Array(7).fill(null).map(() => ({ events: [] }))
 
 function parseDays(raw: any): any[] {
@@ -71,14 +96,10 @@ export default function CalendarPage() {
   const [selectedWeek, setSelectedWeek] = useState<{year: number, week: number} | null>(null)
   const [savedWeeks, setSavedWeeks] = useState<any[]>([])
   const [showThemes, setShowThemes] = useState(false)
-  const [theme, setTheme] = useState(THEMES[0])
+  const [theme, setTheme] = useState<ThemeType>(THEMES[0])
   const [cellShape, setCellShape] = useState('rounded-full')
   const [bgImage, setBgImage] = useState('')
   const [uploadingBg, setUploadingBg] = useState(false)
-  const [showDrawing, setShowDrawing] = useState(false)
-  const [drawColor, setDrawColor] = useState('#ffffff')
-  const [drawSize, setDrawSize] = useState(8)
-  const [isEraser, setIsEraser] = useState(false)
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null)
   const [memories, setMemories] = useState<any[]>([])
   const [showMemories, setShowMemories] = useState(false)
@@ -105,9 +126,7 @@ export default function CalendarPage() {
   const headerStripRef = useRef<HTMLDivElement>(null)
 
   const searchTimerRef = useRef<any>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const isDrawingRef = useRef(false)
-  const lastPos = useRef<{x: number, y: number} | null>(null)
+  const saveThemeTimerRef = useRef<any>(null)
 
   const currentYear = new Date().getFullYear()
   const currentWeek = getWeekNumber(new Date())
@@ -139,13 +158,6 @@ export default function CalendarPage() {
       loadNotifications(data.user.id)
     })
   }, [])
-
-  useEffect(() => {
-    if (showDrawing && canvasRef.current) {
-      const ctx = canvasRef.current.getContext('2d')
-      if (ctx) { ctx.fillStyle = theme.bg; ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height) }
-    }
-  }, [showDrawing])
 
   const loadWeeks = async (userId: string) => {
     const { data } = await supabase.from('weeks').select('*').eq('user_id', userId)
@@ -189,48 +201,40 @@ export default function CalendarPage() {
     }, 300)
   }
 
-  const getPos = (e: any, canvas: HTMLCanvasElement) => {
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / rect.width
-    const scaleY = canvas.height / rect.height
-    if (e.touches) return { x: (e.touches[0].clientX - rect.left) * scaleX, y: (e.touches[0].clientY - rect.top) * scaleY }
-    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY }
-  }
-
-  const startDraw = (e: any) => { isDrawingRef.current = true; lastPos.current = getPos(e, canvasRef.current!) }
-  const draw = (e: any) => {
-    if (!isDrawingRef.current || !canvasRef.current) return
-    e.preventDefault()
-    const ctx = canvasRef.current.getContext('2d')!
-    const pos = getPos(e, canvasRef.current)
-    ctx.beginPath(); ctx.moveTo(lastPos.current!.x, lastPos.current!.y); ctx.lineTo(pos.x, pos.y)
-    ctx.strokeStyle = isEraser ? theme.bg : drawColor
-    ctx.lineWidth = isEraser ? drawSize * 3 : drawSize
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke()
-    lastPos.current = pos
-  }
-  const stopDraw = () => { isDrawingRef.current = false }
-  const clearCanvas = () => {
-    if (!canvasRef.current) return
-    const ctx = canvasRef.current.getContext('2d')!
-    ctx.fillStyle = theme.bg; ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height)
-  }
-  const saveDrawingAsBg = async () => {
-    if (!canvasRef.current || !user) return
-    canvasRef.current.toBlob(async (blob) => {
-      if (!blob) return
-      const file = new File([blob], 'drawing.png', { type: 'image/png' })
-      const { error } = await supabase.storage.from('avatars').upload(`drawing_${user.id}.png`, file, { upsert: true })
-      if (!error) {
-        const { data } = supabase.storage.from('avatars').getPublicUrl(`drawing_${user.id}.png`)
-        setBgImage(data.publicUrl); saveTheme(theme, cellShape, data.publicUrl); setShowDrawing(false)
-      }
-    }, 'image/png')
-  }
-
   const saveTheme = async (newTheme: any, shape?: string, bg?: string) => {
     if (!user) return
     await supabase.from('profiles').upsert({ id: user.id, theme: { ...newTheme, cellShape: shape || cellShape, bgImage: bg !== undefined ? bg : bgImage } })
+  }
+
+  // Couleurs effectives (valeurs par défaut si l'utilisateur n'a rien choisi)
+  const textColor = theme.text ?? '#ffffff'
+  const labelColor = theme.label ?? theme.past
+  const futureColor = theme.future ?? theme.past + '60'
+  const fillColor = theme.filled ?? theme.accent
+  const memoryColor = theme.memory ?? '#fbbf24'
+
+  const getColor = (key: keyof ThemeType): string => {
+    switch (key) {
+      case 'text': return textColor
+      case 'label': return labelColor
+      case 'future': return theme.future ?? theme.past
+      case 'filled': return fillColor
+      case 'memory': return memoryColor
+      default: return theme[key] as string
+    }
+  }
+
+  // Change une couleur tout de suite à l'écran, puis l'enregistre une fois le choix terminé
+  const updateColor = (key: keyof ThemeType, value: string) => {
+    const newTheme: ThemeType = { ...theme, [key]: value, name: 'Personnalisé' }
+    setTheme(newTheme)
+    if (saveThemeTimerRef.current) clearTimeout(saveThemeTimerRef.current)
+    saveThemeTimerRef.current = setTimeout(() => saveTheme(newTheme), 600)
+  }
+
+  const resetColors = () => {
+    setTheme(THEMES[0])
+    saveTheme(THEMES[0])
   }
 
   const uploadBgImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -323,7 +327,6 @@ export default function CalendarPage() {
   }
 
   const handleLogout = async () => { await supabase.auth.signOut(); window.location.href = '/login' }
-  const COLORS = ['#ffffff', '#f87171', '#fb923c', '#fbbf24', '#4ade80', '#38bdf8', '#a78bfa', '#f472b6', '#000000']
   const timeAgo = (date: string) => {
     const diff = Date.now() - new Date(date).getTime()
     const mins = Math.floor(diff / 60000), hours = Math.floor(diff / 3600000), d2 = Math.floor(diff / 86400000)
@@ -377,16 +380,17 @@ export default function CalendarPage() {
         style={{
           width: cellSize, height: cellSize, marginRight: cellGap, flexShrink: 0,
           opacity: isBeforeBirth ? 0 : 1,
-          backgroundColor: isBeforeBirth ? 'transparent' : isCurrent ? theme.accent : isMemory ? '#fbbf24' : hasSaved ? theme.accent + '99' : isPast ? theme.past : 'transparent',
+          backgroundColor: isBeforeBirth ? 'transparent' : isCurrent ? theme.accent : isMemory ? memoryColor : hasSaved ? fillColor + '99' : isPast ? theme.past : 'transparent',
           borderWidth: isBeforeBirth ? 0 : 1, borderStyle: 'solid',
-          borderColor: isBeforeBirth ? 'transparent' : isCurrent ? theme.accent : isMemory ? '#fbbf24' : hasSaved ? theme.accent : isPast ? theme.past : theme.past + '60',
+          borderColor: isBeforeBirth ? 'transparent' : isCurrent ? theme.accent : isMemory ? memoryColor : hasSaved ? fillColor : isPast ? theme.past : futureColor,
           outline: hasLocation ? `2px solid ${theme.accent}` : undefined
         }} />
     )
   }
 
   return (
-    <div className="min-h-screen text-white pb-20" style={{
+    <div className="min-h-screen pb-20" style={{
+      color: textColor,
       backgroundColor: theme.bg,
       backgroundImage: bgImage ? `url(${bgImage})` : undefined,
       backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed'
@@ -512,6 +516,20 @@ export default function CalendarPage() {
                 </button>
               ))}
             </div>
+            <p className="text-zinc-400 text-xs mb-2">Couleurs personnalisées</p>
+            <div className="space-y-2 mb-3">
+              {COLOR_FIELDS.map(f => (
+                <label key={f.key} className="flex items-center justify-between gap-3 text-xs text-zinc-300">
+                  <span>{f.label}</span>
+                  <input type="color" value={getColor(f.key)} onChange={e => updateColor(f.key, e.target.value)}
+                    className="w-10 h-7 rounded cursor-pointer border border-zinc-700 bg-transparent p-0" />
+                </label>
+              ))}
+            </div>
+            <button onClick={resetColors}
+              className="mb-4 px-3 py-1.5 rounded-lg text-xs border border-zinc-700 text-zinc-400 hover:border-zinc-500 transition">
+              Réinitialiser les couleurs
+            </button>
             <p className="text-zinc-400 text-xs mb-2">Forme des cases</p>
             <div className="flex gap-2 mb-4">
               {[{ label: 'Carré', value: 'rounded-none' }, { label: 'Rond', value: 'rounded-full' }].map(s => (
@@ -527,40 +545,11 @@ export default function CalendarPage() {
                 {uploadingBg ? 'Upload...' : '📷 Photo'}
                 <input type="file" accept="image/*" onChange={uploadBgImage} className="hidden" />
               </label>
-              <button onClick={() => setShowDrawing(!showDrawing)}
-                className={`px-2 py-1 rounded-lg text-xs border transition ${showDrawing ? 'border-white text-white' : 'border-zinc-700 text-zinc-400'}`}>
-                ✏️ Dessiner
-              </button>
               {bgImage && (
                 <button onClick={() => { setBgImage(''); saveTheme(theme, cellShape, '') }}
                   className="px-2 py-1 rounded-lg text-xs border border-zinc-700 text-zinc-400">✕ Supprimer</button>
               )}
             </div>
-            {showDrawing && (
-              <div className="mt-3">
-                <div className="flex gap-2 items-center mb-2 flex-wrap">
-                  {COLORS.map(c => (
-                    <button key={c} onClick={() => { setDrawColor(c); setIsEraser(false) }}
-                      className={`w-6 h-6 rounded-full border-2 transition ${drawColor === c && !isEraser ? 'border-white scale-125' : 'border-zinc-600'}`}
-                      style={{ backgroundColor: c }} />
-                  ))}
-                  <input type="color" value={drawColor} onChange={e => { setDrawColor(e.target.value); setIsEraser(false) }}
-                    className="w-6 h-6 rounded-full cursor-pointer border-0 bg-transparent" />
-                  <button onClick={() => setIsEraser(!isEraser)}
-                    className={`px-2 py-1 rounded-lg text-xs border transition ${isEraser ? 'border-white text-white' : 'border-zinc-700 text-zinc-400'}`}>🧹</button>
-                  <input type="range" min="2" max="30" value={drawSize} onChange={e => setDrawSize(Number(e.target.value))} className="w-20" />
-                </div>
-                <canvas ref={canvasRef} width={800} height={400}
-                  className="w-full rounded-xl border border-zinc-700 touch-none cursor-crosshair"
-                  style={{ backgroundColor: theme.bg }}
-                  onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
-                  onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw} />
-                <div className="flex gap-2 mt-2">
-                  <button onClick={clearCanvas} className="px-3 py-1 rounded-lg text-xs border border-zinc-700 text-zinc-400">🗑️</button>
-                  <button onClick={saveDrawingAsBg} className="px-3 py-1 rounded-lg text-xs bg-white text-black font-bold">✅ Utiliser</button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -594,7 +583,7 @@ export default function CalendarPage() {
                           <div key={i} style={{
                             width: cellSize, marginRight: cellGap, flexShrink: 0, textAlign: 'center',
                             fontSize: '9px', lineHeight: 1,
-                            color: isNow ? theme.accent : theme.past,
+                            color: isNow ? theme.accent : labelColor,
                             fontWeight: isNow ? 700 : 400
                           }}>
                             {show ? n : ''}
@@ -613,7 +602,7 @@ export default function CalendarPage() {
                         <div style={{
                           width: yearColWidth, flexShrink: 0, position: 'sticky', left: 0, zIndex: 5,
                           backgroundColor: theme.bg + 'e6', textAlign: 'right', paddingRight: 8,
-                          color: year === currentYear ? theme.accent : theme.past,
+                          color: year === currentYear ? theme.accent : labelColor,
                           fontWeight: year === currentYear ? 700 : 400,
                           fontSize: '11px', lineHeight: `${cellSize}px`
                         }}>
@@ -639,7 +628,7 @@ export default function CalendarPage() {
                   {Array.from({ length: 52 }, (_, i) => (
                     <div key={i} style={{
                       width: cellSize, marginRight: cellGap, flexShrink: 0,
-                      textAlign: 'center', fontSize: cellSize < 6 ? '0px' : '9px', lineHeight: 1, color: theme.past
+                      textAlign: 'center', fontSize: cellSize < 6 ? '0px' : '9px', lineHeight: 1, color: labelColor
                     }}>
                       {(i + 1) % 5 === 0 ? i + 1 : ''}
                     </div>
@@ -651,7 +640,7 @@ export default function CalendarPage() {
                   <div key={year} className="flex items-center" style={{ marginBottom: cellGap }}>
                     <div style={{
                       width: yearColWidth, flexShrink: 0, textAlign: 'right',
-                      paddingRight: '8px', color: theme.past, fontSize: cellSize < 6 ? '8px' : '11px', lineHeight: 1,
+                      paddingRight: '8px', color: labelColor, fontSize: cellSize < 6 ? '8px' : '11px', lineHeight: 1,
                       opacity: year % 5 === 0 ? 1 : 0
                     }}>
                       {year}
