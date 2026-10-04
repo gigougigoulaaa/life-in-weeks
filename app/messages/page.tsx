@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useI18n } from '@/lib/i18n'
 
 export default function MessagesPage() {
+  const { t, timeAgo: relTime } = useI18n()
   const [user, setUser] = useState<any>(null)
   const [conversations, setConversations] = useState<any[]>([])
   const [selectedUser, setSelectedUser] = useState<any>(null)
@@ -107,15 +109,7 @@ export default function MessagesPage() {
     setSearchResults(data || [])
   }
 
-  const timeAgo = (date: string) => {
-    const diff = Date.now() - new Date(date).getTime()
-    const mins = Math.floor(diff / 60000)
-    const hours = Math.floor(diff / 3600000)
-    if (mins < 1) return "À l'instant"
-    if (mins < 60) return `${mins}m`
-    if (hours < 24) return `${hours}h`
-    return new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-  }
+  const timeAgo = (date: string) => relTime(date, true)
 
   return (
     <div className="min-h-screen bg-black text-white pb-16">
@@ -124,12 +118,12 @@ export default function MessagesPage() {
         {/* Liste des conversations */}
         <div className={`${selectedUser ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-80 border-r border-zinc-800`}>
           <div className="p-4 border-b border-zinc-800">
-            <h1 className="text-xl font-bold mb-3">Messages</h1>
+            <h1 className="text-xl font-bold mb-3">{t('msg.title')}</h1>
             <input
               type="text"
               value={searchQuery}
               onChange={e => searchUsers(e.target.value)}
-              placeholder="Nouvelle conversation..."
+              placeholder={t('msg.newConv')}
               className="w-full bg-zinc-900 text-white p-2 rounded-lg outline-none border border-zinc-800 text-sm"
             />
             {searchResults.length > 0 && (
@@ -151,7 +145,7 @@ export default function MessagesPage() {
 
           <div className="flex-1 overflow-y-auto">
             {conversations.length === 0 && (
-              <p className="text-zinc-500 text-sm text-center mt-8">Aucune conversation</p>
+              <p className="text-zinc-500 text-sm text-center mt-8">{t('msg.none')}</p>
             )}
             {conversations.map(({ user: other, lastMessage }) => (
               <button key={other?.id} onClick={() => selectUser(other)}
@@ -163,7 +157,7 @@ export default function MessagesPage() {
                     : <div className="w-full h-full flex items-center justify-center">👤</div>}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="font-medium text-sm truncate">{other?.full_name || other?.username || 'Utilisateur'}</p>
+                  <p className="font-medium text-sm truncate">{other?.full_name || other?.username || t('common.user')}</p>
                   <p className="text-zinc-500 text-xs truncate">{lastMessage.content}</p>
                 </div>
                 <span className="text-zinc-600 text-xs">{timeAgo(lastMessage.created_at)}</span>
@@ -206,7 +200,7 @@ export default function MessagesPage() {
                 value={newMessage}
                 onChange={e => setNewMessage(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                placeholder="Écrire un message..."
+                placeholder={t('msg.write')}
                 className="flex-1 bg-zinc-900 text-white p-3 rounded-xl outline-none border border-zinc-800 focus:border-zinc-600 text-sm"
               />
               <button onClick={sendMessage}
@@ -217,7 +211,7 @@ export default function MessagesPage() {
           </div>
         ) : (
           <div className="hidden md:flex flex-1 items-center justify-center text-zinc-600">
-            <p>Sélectionnez une conversation</p>
+            <p>{t('msg.select')}</p>
           </div>
         )}
       </div>

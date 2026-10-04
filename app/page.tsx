@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useI18n } from '@/lib/i18n'
 
 export default function ProfilePage() {
+  const { t } = useI18n()
   const [user, setUser] = useState<any>(null)
   const [username, setUsername] = useState('')
   const [fullName, setFullName] = useState('')
@@ -40,8 +42,8 @@ export default function ProfilePage() {
       bio,
       avatar_url: avatarUrl
     })
-    if (error) setMessage('Erreur : ' + error.message)
-    else setMessage('Profil sauvegardé !')
+    if (error) setMessage(t('home.error') + error.message)
+    else setMessage(t('home.saved'))
     setSaving(false)
     setTimeout(() => setMessage(''), 3000)
   }
@@ -65,9 +67,9 @@ export default function ProfilePage() {
       <div className="max-w-lg mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <button onClick={() => window.location.href = '/calendar'} className="text-zinc-400 hover:text-white">
-            ← Retour
+            ← {t('common.back')}
           </button>
-          <h1 className="text-2xl font-bold">Mon profil</h1>
+          <h1 className="text-2xl font-bold">{t('home.title')}</h1>
         </div>
 
         <div className="flex flex-col items-center mb-8">
@@ -84,36 +86,36 @@ export default function ProfilePage() {
               <input type="file" accept="image/*" onChange={uploadAvatar} className="hidden" />
             </label>
           </div>
-          {uploading && <p className="text-zinc-400 text-sm">Upload en cours...</p>}
+          {uploading && <p className="text-zinc-400 text-sm">{t('common.uploading')}</p>}
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="text-zinc-400 text-sm mb-1 block">Nom d'utilisateur</label>
+            <label className="text-zinc-400 text-sm mb-1 block">{t('profile.username')}</label>
             <input
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder="@votre_nom"
+              placeholder={t('home.usernamePh')}
               className="w-full bg-zinc-900 text-white p-3 rounded-lg outline-none border border-zinc-800 focus:border-zinc-600"
             />
           </div>
           <div>
-            <label className="text-zinc-400 text-sm mb-1 block">Nom complet</label>
+            <label className="text-zinc-400 text-sm mb-1 block">{t('profile.fullName')}</label>
             <input
               type="text"
               value={fullName}
               onChange={e => setFullName(e.target.value)}
-              placeholder="Votre nom"
+              placeholder={t('home.fullNamePh')}
               className="w-full bg-zinc-900 text-white p-3 rounded-lg outline-none border border-zinc-800 focus:border-zinc-600"
             />
           </div>
           <div>
-            <label className="text-zinc-400 text-sm mb-1 block">Biographie</label>
+            <label className="text-zinc-400 text-sm mb-1 block">{t('profile.bio')}</label>
             <textarea
               value={bio}
               onChange={e => setBio(e.target.value)}
-              placeholder="Parlez de vous..."
+              placeholder={t('profile.bioPh')}
               rows={4}
               className="w-full bg-zinc-900 text-white p-3 rounded-lg outline-none border border-zinc-800 focus:border-zinc-600 resize-none"
             />
@@ -124,7 +126,7 @@ export default function ProfilePage() {
             disabled={saving}
             className="w-full bg-white text-black font-bold p-3 rounded-lg hover:bg-zinc-200 transition"
           >
-            {saving ? 'Sauvegarde...' : 'Sauvegarder le profil'}
+            {saving ? t('common.saving') : t('home.saveProfile')}
           </button>
 
           {message && <p className="text-green-400 text-center">{message}</p>}

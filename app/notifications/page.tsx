@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useI18n } from '@/lib/i18n'
 
 export default function NotificationsPage() {
+  const { t, timeAgo: relTime } = useI18n()
   const [user, setUser] = useState<any>(null)
   const [notifications, setNotifications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,16 +68,7 @@ export default function NotificationsPage() {
     }
   }
 
-  const timeAgo = (date: string) => {
-    const diff = Date.now() - new Date(date).getTime()
-    const mins = Math.floor(diff / 60000)
-    const hours = Math.floor(diff / 3600000)
-    const days = Math.floor(diff / 86400000)
-    if (mins < 1) return "À l'instant"
-    if (mins < 60) return `Il y a ${mins}m`
-    if (hours < 24) return `Il y a ${hours}h`
-    return `Il y a ${days}j`
-  }
+  const timeAgo = (date: string) => relTime(date)
 
   const unreadCount = notifications.filter(n => !n.is_read).length
 
@@ -84,7 +77,7 @@ export default function NotificationsPage() {
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold">Notifications</h1>
+            <h1 className="text-3xl font-bold">{t('notif.title')}</h1>
             {unreadCount > 0 && (
               <span className="bg-white text-black text-xs font-bold px-2 py-1 rounded-full">
                 {unreadCount}
@@ -93,17 +86,17 @@ export default function NotificationsPage() {
           </div>
           {unreadCount > 0 && (
             <button onClick={markAllRead} className="text-zinc-400 text-sm hover:text-white">
-              Tout marquer comme lu
+              {t('notif.markAll')}
             </button>
           )}
         </div>
 
-        {loading && <p className="text-zinc-400 text-center">Chargement...</p>}
+        {loading && <p className="text-zinc-400 text-center">{t('common.loading')}</p>}
 
         {!loading && notifications.length === 0 && (
           <div className="text-center mt-20">
             <p className="text-4xl mb-4">🔔</p>
-            <p className="text-zinc-400">Pas encore de notifications</p>
+            <p className="text-zinc-400">{t('notif.empty')}</p>
           </div>
         )}
 

@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useI18n } from '@/lib/i18n'
 
 export default function SearchPage() {
+  const { t } = useI18n()
   const [user, setUser] = useState<any>(null)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<any[]>([])
@@ -54,7 +56,7 @@ export default function SearchPage() {
   }
 
   const pickSuggestion = (week: any) => {
-    setQuery(week.title || `Semaine ${week.week_number} ${week.year}`)
+    setQuery(week.title || t('common.weekOfYear', { n: week.week_number, year: week.year }))
     setSuggestions([])
     setShowSuggestions(false)
     search(week.title || '')
@@ -78,7 +80,7 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-black text-white p-6 pb-20">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Recherche</h1>
+        <h1 className="text-3xl font-bold mb-8">{t('search.title')}</h1>
 
         <div className="relative mb-6">
           <div className="flex gap-2">
@@ -89,7 +91,7 @@ export default function SearchPage() {
               onKeyDown={e => e.key === 'Enter' && search()}
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              placeholder="Rechercher un souvenir..."
+              placeholder={t('search.placeholder')}
               className="flex-1 bg-zinc-900 text-white p-3 rounded-lg outline-none border border-zinc-800 focus:border-zinc-600"
             />
             <button onClick={() => search()}
@@ -107,7 +109,7 @@ export default function SearchPage() {
                   className="w-full text-left px-4 py-3 hover:bg-zinc-800 transition border-b border-zinc-800 last:border-0"
                 >
                   <div className="flex justify-between items-center">
-                    <span className="font-medium text-sm">{week.title || 'Sans titre'}</span>
+                    <span className="font-medium text-sm">{week.title || t('common.untitled')}</span>
                     <span className="text-zinc-500 text-xs">S{week.week_number} {week.year}</span>
                   </div>
                   {week.content && (
@@ -119,17 +121,17 @@ export default function SearchPage() {
           )}
         </div>
 
-        {loading && <p className="text-zinc-400 text-center">Recherche en cours...</p>}
+        {loading && <p className="text-zinc-400 text-center">{t('common.searching')}</p>}
 
         {results.length === 0 && query && !loading && (
-          <p className="text-zinc-400 text-center">Aucun résultat pour "{query}"</p>
+          <p className="text-zinc-400 text-center">{t('search.noResult', { query })}</p>
         )}
 
         <div className="space-y-4">
           {results.map(week => (
             <div key={week.id} className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
               <div className="flex justify-between items-start mb-2">
-                <span className="text-zinc-400 text-sm">Semaine {week.week_number} — {week.year}</span>
+                <span className="text-zinc-400 text-sm">{t('common.weekOfYear', { n: week.week_number, year: week.year })}</span>
                 <span className="text-xs px-2 py-1 rounded-full bg-zinc-800 text-zinc-400">
                   {week.visibility === 'private' ? '🔒' : week.visibility === 'friends' ? '👥' : '🌍'}
                 </span>

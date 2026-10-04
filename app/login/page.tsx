@@ -1,8 +1,11 @@
 'use client'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useI18n } from '@/lib/i18n'
+import LanguageSelector from '../components/LanguageSelector'
 
 export default function LoginPage() {
+  const { t } = useI18n()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
@@ -15,7 +18,7 @@ export default function LoginPage() {
     if (isSignUp) {
       const { error } = await supabase.auth.signUp({ email, password })
       if (error) setMessage(error.message)
-      else setMessage('Vérifiez votre email pour confirmer votre compte !')
+      else setMessage(t('login.checkEmail'))
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setMessage(error.message)
@@ -26,19 +29,20 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="fixed top-4 right-4"><LanguageSelector /></div>
       <div className="bg-zinc-900 p-8 rounded-2xl w-full max-w-md">
         <h1 className="text-3xl font-bold text-white mb-2">Life in Weeks</h1>
-        <p className="text-zinc-400 mb-8">Votre vie, semaine par semaine.</p>
+        <p className="text-zinc-400 mb-8">{t('app.tagline')}</p>
         <input
           type="email"
-          placeholder="Email"
+          placeholder={t('login.email')}
           value={email}
           onChange={e => setEmail(e.target.value)}
           className="w-full bg-zinc-800 text-white p-3 rounded-lg mb-3 outline-none"
         />
         <input
           type="password"
-          placeholder="Mot de passe"
+          placeholder={t('login.password')}
           value={password}
           onChange={e => setPassword(e.target.value)}
           className="w-full bg-zinc-800 text-white p-3 rounded-lg mb-6 outline-none"
@@ -48,13 +52,13 @@ export default function LoginPage() {
           disabled={loading}
           className="w-full bg-white text-black font-bold p-3 rounded-lg mb-4 hover:bg-zinc-200 transition"
         >
-          {loading ? 'Chargement...' : isSignUp ? 'Créer mon compte' : 'Se connecter'}
+          {loading ? t('common.loading') : isSignUp ? t('login.create') : t('login.signin')}
         </button>
         <p
           onClick={() => setIsSignUp(!isSignUp)}
           className="text-zinc-400 text-center cursor-pointer hover:text-white"
         >
-          {isSignUp ? 'Déjà un compte ? Se connecter' : "Pas de compte ? S'inscrire"}
+          {isSignUp ? t('login.haveAccount') : t('login.noAccount')}
         </p>
         {message && <p className="text-yellow-400 text-center mt-4">{message}</p>}
       </div>

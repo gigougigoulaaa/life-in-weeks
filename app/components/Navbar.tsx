@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useI18n } from '@/lib/i18n'
 
 function getAge(birthDate: string): number {
   const birth = new Date(birthDate)
@@ -14,6 +15,7 @@ function getAge(birthDate: string): number {
 
 export default function Navbar() {
   const pathname = usePathname()
+  const { t } = useI18n()
   const [unread, setUnread] = useState(0)
   const [avatarUrl, setAvatarUrl] = useState('')
   const [age, setAge] = useState<number | null>(null)
@@ -49,10 +51,10 @@ export default function Navbar() {
   }, [])
 
   const links = [
-    { href: '/calendar', emoji: '📅', title: 'Calendrier' },
-    { href: '/messages', emoji: '✈️', title: 'Messages' },
-    { href: '/map', emoji: '🌍', title: 'Carte' },
-    { href: '/profile', emoji: '', title: 'Profil' },
+    { href: '/calendar', emoji: '📅', title: t('nav.calendar') },
+    { href: '/messages', emoji: '✈️', title: t('nav.messages') },
+    { href: '/map', emoji: '🌍', title: t('nav.map') },
+    { href: '/profile', emoji: '', title: t('nav.profile') },
   ]
 
   return (

@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useI18n, type Key } from '@/lib/i18n'
+import LanguageSelector from '../components/LanguageSelector'
 
 function getWeekNumber(date: Date): number {
   const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
@@ -21,8 +23,6 @@ function getWeekDates(year: number, week: number): Date[] {
     return d
   })
 }
-
-const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
 type ThemeType = {
   name: string
@@ -49,18 +49,25 @@ const THEMES: ThemeType[] = [
 const END_YEAR = 2150
 
 // Éléments dont la couleur est modifiable
-const COLOR_FIELDS: { key: keyof ThemeType, label: string }[] = [
-  { key: 'bg', label: 'Fond' },
-  { key: 'text', label: 'Texte (titre, boutons)' },
-  { key: 'label', label: 'Années et numéros de semaines' },
-  { key: 'past', label: 'Semaines passées' },
-  { key: 'accent', label: 'Semaine actuelle' },
-  { key: 'filled', label: 'Semaines remplies' },
-  { key: 'memory', label: 'Semaines de souvenirs' },
-  { key: 'future', label: 'Semaines à venir (contour)' },
+const COLOR_FIELDS: { key: keyof ThemeType, labelKey: Key }[] = [
+  { key: 'bg', labelKey: 'color.bg' },
+  { key: 'text', labelKey: 'color.text' },
+  { key: 'label', labelKey: 'color.label' },
+  { key: 'past', labelKey: 'color.past' },
+  { key: 'accent', labelKey: 'color.accent' },
+  { key: 'filled', labelKey: 'color.filled' },
+  { key: 'memory', labelKey: 'color.memory' },
+  { key: 'future', labelKey: 'color.future' },
 ]
 
-// Palette de 84 couleurs : 12 gris + 12 teintes × 6 luminosités (du plus clair au plus foncé)
+// Les noms de thèmes sont enregistrés en français dans le profil : on les traduit seulement à l'affichage
+const THEME_KEYS: Record<string, Key> = {
+  'Défaut': 'theme.name.default', 'Océan': 'theme.name.ocean', 'Forêt': 'theme.name.forest',
+  'Coucher de soleil': 'theme.name.sunset', 'Rose': 'theme.name.pink', 'Violet': 'theme.name.violet',
+  'Or': 'theme.name.gold', 'Personnalisé': 'theme.name.custom',
+}
+
+// Palette de 168 couleurs : 24 gris + 12 teintes × 12 luminosités (du plus clair au plus foncé)
 function hslToHex(h: number, s: number, l: number): string {
   s /= 100
   l /= 100
@@ -71,17 +78,16 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`
 }
 
-const NEUTRALS = Array.from({ length: 12 }, (_, i) => {
-  const v = Math.round((i * 255) / 11).toString(16).padStart(2, '0')
+const NEUTRALS = Array.from({ length: 24 }, (_, i) => {
+  const v = Math.round((i * 255) / 23).toString(16).padStart(2, '0')
   return `#${v}${v}${v}`
 })
 const HUES = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
-const LIGHTNESS = [88, 74, 60, 46, 32, 18]
+const LIGHTNESS = [94, 87, 80, 73, 66, 59, 52, 45, 38, 31, 24, 16]
 const PALETTE: string[] = [
   ...NEUTRALS,
   ...LIGHTNESS.flatMap(l => HUES.map(h => hslToHex(h, 85, l))),
 ]
-
 const EMPTY_DAYS = () => Array(7).fill(null).map(() => ({ events: [] }))
 
 function parseDays(raw: any): any[] {
@@ -112,6 +118,8 @@ function computeLayout(containerWidth: number) {
 }
 
 export default function CalendarPage() {
+  const { t, dayNames, timeAgo, yearsAgo, fmtDayMonth } = useI18n()
+  const themeLabel = (name: string) => (THEME_KEYS[name] ? t(THEME_KEYS[name]) : name)
   const [user, setUser] = useState<any>(null)
   const [birthDate, setBirthDate] = useState<Date | null>(null)
   const [inputDate, setInputDate] = useState('')
@@ -350,11 +358,6 @@ export default function CalendarPage() {
   }
 
   const handleLogout = async () => { await supabase.auth.signOut(); window.location.href = '/login' }
-  const timeAgo = (date: string) => {
-    const diff = Date.now() - new Date(date).getTime()
-    const mins = Math.floor(diff / 60000), hours = Math.floor(diff / 3600000), d2 = Math.floor(diff / 86400000)
-    if (mins < 1) return "À l'instant"; if (mins < 60) return `${mins}m`; if (hours < 24) return `${hours}h`; return `${d2}j`
-  }
 
   const startYear = birthDate ? birthDate.getFullYear() : null
   const years = startYear ? Array.from({ length: END_YEAR - startYear + 1 }, (_, i) => startYear + i) : []
@@ -441,11 +444,11 @@ export default function CalendarPage() {
             </button>
             <button onClick={() => setShowThemes(!showThemes)}
               className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-zinc-700 hover:border-zinc-500 transition whitespace-nowrap">
-              🎨 <span className="hidden sm:inline">Thème</span>
+              🎨 <span className="hidden sm:inline">{t('cal.theme')}</span>
             </button>
             <button onClick={handleLogout} className="text-zinc-500 hover:text-white text-xs sm:text-sm whitespace-nowrap">
-              <span className="sm:hidden">Sortir</span>
-              <span className="hidden sm:inline">Déconnexion</span>
+              <span className="sm:hidden">{t('cal.logoutShort')}</span>
+              <span className="hidden sm:inline">{t('cal.logout')}</span>
             </button>
           </div>
         </div>
@@ -455,25 +458,25 @@ export default function CalendarPage() {
           <input type="text" value={searchQuery} onChange={e => handleSearch(e.target.value)}
             onFocus={() => searchQuery && setShowSearch(true)}
             onBlur={() => setTimeout(() => setShowSearch(false), 200)}
-            placeholder="🔍 Rechercher..."
+            placeholder={`🔍 ${t('cal.search')}`}
             className="w-full bg-zinc-900/90 text-white px-3 py-2 sm:py-2.5 rounded-xl outline-none border border-zinc-800 focus:border-zinc-600 text-sm" />
           {showSearch && (searchResults.length > 0 || userResults.length > 0) && (
             <div className="absolute left-0 right-0 mt-1 bg-zinc-900 rounded-xl border border-zinc-700 z-30 shadow-2xl overflow-hidden">
               {searchResults.length > 0 && (
                 <div>
-                  <p className="text-zinc-500 text-xs px-3 pt-2 pb-1">📅 Souvenirs</p>
+                  <p className="text-zinc-500 text-xs px-3 pt-2 pb-1">📅 {t('cal.memories')}</p>
                   {searchResults.map(week => (
                     <button key={week.id} onMouseDown={() => { openWeek(week.year, week.week_number); setShowSearch(false); setSearchQuery('') }}
                       className="w-full text-left px-3 py-2 hover:bg-zinc-800 border-b border-zinc-800 last:border-0">
-                      <p className="text-sm font-medium">{week.title || `Semaine ${week.week_number}`}</p>
-                      <p className="text-zinc-500 text-xs">Semaine {week.week_number} — {week.year}</p>
+                      <p className="text-sm font-medium">{week.title || t('common.week', { n: week.week_number })}</p>
+                      <p className="text-zinc-500 text-xs">{t('common.weekOfYear', { n: week.week_number, year: week.year })}</p>
                     </button>
                   ))}
                 </div>
               )}
               {userResults.length > 0 && (
                 <div>
-                  <p className="text-zinc-500 text-xs px-3 pt-2 pb-1">👥 Personnes</p>
+                  <p className="text-zinc-500 text-xs px-3 pt-2 pb-1">👥 {t('cal.people')}</p>
                   {userResults.map(u => (
                     <button key={u.id} onMouseDown={() => { window.location.href = '/users'; setShowSearch(false) }}
                       className="w-full flex items-center gap-3 px-3 py-2 hover:bg-zinc-800">
@@ -496,14 +499,14 @@ export default function CalendarPage() {
         {showNotifs && (
           <div className="bg-zinc-900/90 rounded-2xl p-4 mb-3 border border-zinc-800">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="font-bold text-sm">Notifications</h3>
+              <h3 className="font-bold text-sm">{t('notif.title')}</h3>
               <div className="flex gap-2">
-                {unreadCount > 0 && <button onClick={markAllRead} className="text-xs text-zinc-400 hover:text-white">Tout lire</button>}
+                {unreadCount > 0 && <button onClick={markAllRead} className="text-xs text-zinc-400 hover:text-white">{t('notif.readAll')}</button>}
                 <button onClick={() => setShowNotifs(false)} className="text-zinc-500 hover:text-white text-xs">✕</button>
               </div>
             </div>
             {notifications.length === 0 ? (
-              <p className="text-zinc-500 text-sm text-center py-2">Pas encore de notifications</p>
+              <p className="text-zinc-500 text-sm text-center py-2">{t('notif.empty')}</p>
             ) : (
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {notifications.map(notif => (
@@ -524,22 +527,26 @@ export default function CalendarPage() {
         {/* Panel thème */}
         {showThemes && (
           <div className="bg-black/80 rounded-2xl p-4 mb-3 border border-zinc-800">
-            <h2 className="font-bold mb-3 text-sm">🎨 Personnalisation</h2>
-            <p className="text-zinc-400 text-xs mb-2">Couleur</p>
+            <h2 className="font-bold mb-3 text-sm">🎨 {t('theme.title')}</h2>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <p className="text-zinc-400 text-xs">{t('common.language')}</p>
+              <LanguageSelector showName />
+            </div>
+            <p className="text-zinc-400 text-xs mb-2">{t('theme.color')}</p>
             <div className="grid grid-cols-4 gap-2 mb-4">
-              {THEMES.map(t => (
-                <button key={t.name} onClick={() => { setTheme(t); saveTheme(t) }}
-                  className={`p-1.5 rounded-xl border transition text-xs ${theme.name === t.name ? 'border-white' : 'border-zinc-700'}`}
-                  style={{ backgroundColor: t.bg }}>
+              {THEMES.map(th => (
+                <button key={th.name} onClick={() => { setTheme(th); saveTheme(th) }}
+                  className={`p-1.5 rounded-xl border transition text-xs ${theme.name === th.name ? 'border-white' : 'border-zinc-700'}`}
+                  style={{ backgroundColor: th.bg }}>
                   <div className="flex gap-1 justify-center mb-1">
-                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: t.past }} />
-                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: t.accent }} />
+                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: th.past }} />
+                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: th.accent }} />
                   </div>
-                  <span style={{ color: t.accent, fontSize: '9px' }}>{t.name}</span>
+                  <span style={{ color: th.accent, fontSize: '9px' }}>{themeLabel(th.name)}</span>
                 </button>
               ))}
             </div>
-            <p className="text-zinc-400 text-xs mb-2">Couleurs personnalisées</p>
+            <p className="text-zinc-400 text-xs mb-2">{t('theme.custom')}</p>
             <div className="space-y-1.5 mb-3">
               {COLOR_FIELDS.map(f => {
                 const current = getColor(f.key)
@@ -548,7 +555,7 @@ export default function CalendarPage() {
                   <div key={f.key} className="rounded-xl border border-zinc-800">
                     <button onClick={() => setOpenColorKey(isOpen ? null : f.key)}
                       className="w-full flex items-center justify-between gap-3 px-3 py-2 text-xs text-zinc-300">
-                      <span>{f.label}</span>
+                      <span>{t(f.labelKey)}</span>
                       <span className="flex items-center gap-2">
                         <span className="w-8 h-5 rounded border border-zinc-600" style={{ backgroundColor: current }} />
                         <span className="text-zinc-500">{isOpen ? '▲' : '▼'}</span>
@@ -571,7 +578,7 @@ export default function CalendarPage() {
                           })}
                         </div>
                         <label className="flex items-center justify-between gap-3 mt-3 text-xs text-zinc-400">
-                          <span>Autre couleur…</span>
+                          <span>{t('theme.other')}</span>
                           <input type="color" value={current} onChange={e => updateColor(f.key, e.target.value)}
                             className="w-10 h-7 rounded cursor-pointer border border-zinc-700 bg-transparent p-0" />
                         </label>
@@ -583,26 +590,26 @@ export default function CalendarPage() {
             </div>
             <button onClick={resetColors}
               className="mb-4 px-3 py-1.5 rounded-lg text-xs border border-zinc-700 text-zinc-400 hover:border-zinc-500 transition">
-              Réinitialiser les couleurs
+              {t('theme.reset')}
             </button>
-            <p className="text-zinc-400 text-xs mb-2">Forme des cases</p>
+            <p className="text-zinc-400 text-xs mb-2">{t('theme.shape')}</p>
             <div className="flex gap-2 mb-4">
-              {[{ label: 'Carré', value: 'rounded-none' }, { label: 'Rond', value: 'rounded-full' }].map(s => (
+              {[{ label: t('theme.square'), value: 'rounded-none' }, { label: t('theme.round'), value: 'rounded-full' }].map(s => (
                 <button key={s.value} onClick={() => { setCellShape(s.value); saveTheme(theme, s.value) }}
                   className={`px-3 py-1.5 rounded-lg text-xs border transition ${cellShape === s.value ? 'border-white text-white' : 'border-zinc-700 text-zinc-400'}`}>
                   {s.label}
                 </button>
               ))}
             </div>
-            <p className="text-zinc-400 text-xs mb-2">Fond</p>
+            <p className="text-zinc-400 text-xs mb-2">{t('theme.background')}</p>
             <div className="flex gap-2 flex-wrap">
               <label className="px-2 py-1 rounded-lg text-xs border border-zinc-700 cursor-pointer hover:border-zinc-500 transition">
-                {uploadingBg ? 'Upload...' : '📷 Photo'}
+                {uploadingBg ? t('theme.uploading') : `📷 ${t('theme.photo')}`}
                 <input type="file" accept="image/*" onChange={uploadBgImage} className="hidden" />
               </label>
               {bgImage && (
                 <button onClick={() => { setBgImage(''); saveTheme(theme, cellShape, '') }}
-                  className="px-2 py-1 rounded-lg text-xs border border-zinc-700 text-zinc-400">✕ Supprimer</button>
+                  className="px-2 py-1 rounded-lg text-xs border border-zinc-700 text-zinc-400">✕ {t('theme.remove')}</button>
               )}
             </div>
           </div>
@@ -610,15 +617,15 @@ export default function CalendarPage() {
 
         {!birthDate ? (
           <div className="bg-zinc-900 p-6 rounded-2xl max-w-sm mx-auto text-center mt-8">
-            <h2 className="text-lg font-bold mb-3">Votre date de naissance ?</h2>
+            <h2 className="text-lg font-bold mb-3">{t('cal.birthQuestion')}</h2>
             <input type="date" value={inputDate} onChange={e => setInputDate(e.target.value)}
               className="w-full bg-zinc-800 text-white p-3 rounded-lg mb-3 outline-none" />
             <button onClick={saveBirthDate} className="w-full bg-white text-black font-bold p-3 rounded-lg hover:bg-zinc-200 transition">
-              Générer mon calendrier
+              {t('cal.generate')}
             </button>
           </div>
         ) : (
-          <div ref={containerRef} className={layout.isMobile ? 'w-full' : 'w-full overflow-x-hidden'} style={{ paddingLeft: sideMargin, paddingRight: sideMargin }}>
+          <div ref={containerRef} dir="ltr" className={layout.isMobile ? 'w-full' : 'w-full overflow-x-hidden'} style={{ paddingLeft: sideMargin, paddingRight: sideMargin }}>
 
             {layout.isMobile ? (
               <>
@@ -673,7 +680,7 @@ export default function CalendarPage() {
                 <button onClick={() => focusCurrentWeek(true)}
                   className="fixed right-4 bottom-24 z-30 px-3 h-9 rounded-full border text-xs font-medium whitespace-nowrap"
                   style={{ borderColor: theme.accent, color: theme.accent, backgroundColor: theme.bg + 'e6' }}>
-                  Aujourd'hui
+                  {t('cal.today')}
                 </button>
               </>
             ) : (
@@ -715,8 +722,8 @@ export default function CalendarPage() {
           <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h2 className="text-xl font-bold">✨ Souvenirs</h2>
-                <p className="text-zinc-400 text-sm">Cette semaine dans votre passé</p>
+                <h2 className="text-xl font-bold">✨ {t('mem.title')}</h2>
+                <p className="text-zinc-400 text-sm">{t('mem.subtitle')}</p>
               </div>
               <button onClick={() => setShowMemories(false)} className="text-zinc-400 hover:text-white text-xl">✕</button>
             </div>
@@ -724,13 +731,13 @@ export default function CalendarPage() {
               {memories.map(memory => (
                 <div key={memory.id} className="bg-zinc-800 rounded-xl p-4 border border-yellow-500/30">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-yellow-400 font-bold text-sm">Il y a {currentYear - memory.year} an{currentYear - memory.year > 1 ? 's' : ''}</span>
+                    <span className="text-yellow-400 font-bold text-sm">{yearsAgo(currentYear - memory.year)}</span>
                     <span className="text-zinc-500 text-xs">— {memory.year}</span>
                   </div>
                   {memory.title && <h3 className="font-bold mb-1 text-sm">{memory.title}</h3>}
                   {memory.content && <p className="text-zinc-300 text-xs line-clamp-3">{memory.content}</p>}
                   <button onClick={() => { setShowMemories(false); openWeek(memory.year, memory.week_number) }}
-                    className="mt-2 text-yellow-400 text-xs hover:text-yellow-300">Voir cette semaine →</button>
+                    className="mt-2 text-yellow-400 text-xs hover:text-yellow-300">{t('mem.view')} →</button>
                 </div>
               ))}
             </div>
@@ -745,31 +752,31 @@ export default function CalendarPage() {
             <div className="flex border-b border-zinc-800 sticky top-0 bg-zinc-900 rounded-t-2xl z-10">
               <button onClick={() => setShowDays(false)}
                 className={`flex-1 py-3 text-sm font-medium transition ${!showDays ? 'text-white border-b-2 border-white' : 'text-zinc-500'}`}>
-                Vue d'ensemble
+                {t('week.overview')}
               </button>
               <button onClick={() => setShowDays(true)}
                 className={`flex-1 py-3 text-sm font-medium transition ${showDays ? 'text-white border-b-2 border-white' : 'text-zinc-500'}`}>
-                Journées
+                {t('week.days')}
               </button>
               <button onClick={() => setSelectedWeek(null)} className="px-4 text-zinc-500 hover:text-white text-lg">✕</button>
             </div>
 
             <div className="p-5">
-              <p className="text-zinc-500 text-xs mb-4">Semaine {selectedWeek.week} — {selectedWeek.year}</p>
+              <p className="text-zinc-500 text-xs mb-4">{t('common.weekOfYear', { n: selectedWeek.week, year: selectedWeek.year })}</p>
 
               {!showDays ? (
                 <div>
                   {totalEvents === 0 ? (
                     <div className="text-center py-12">
-                      <p className="text-zinc-600 text-sm mb-3">Aucun évènement cette semaine</p>
+                      <p className="text-zinc-600 text-sm mb-3">{t('week.none')}</p>
                       <button onClick={() => setShowDays(true)}
                         className="text-sm px-4 py-2 rounded-xl border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 transition">
-                        + Ajouter des évènements
+                        + {t('week.addEvents')}
                       </button>
                     </div>
                   ) : (
                     <div className="space-y-5">
-                      {DAY_NAMES.map((dayName, dayIndex) => {
+                      {dayNames.map((dayName, dayIndex) => {
                         const date = weekDates[dayIndex]
                         const events = days[dayIndex]?.events || []
                         if (events.length === 0) return null
@@ -777,7 +784,7 @@ export default function CalendarPage() {
                           <div key={dayIndex}>
                             <div className="flex items-center gap-2 mb-2">
                               <span className="text-sm font-bold">{dayName}</span>
-                              {date && <span className="text-zinc-600 text-xs">{date.getDate()}/{date.getMonth() + 1}</span>}
+                              {date && <span className="text-zinc-600 text-xs">{fmtDayMonth(date)}</span>}
                             </div>
                             <div className="space-y-2 pl-3 border-l border-zinc-800">
                               {events.map((event: any, eventIndex: number) => (
@@ -802,7 +809,7 @@ export default function CalendarPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {DAY_NAMES.map((dayName, dayIndex) => {
+                  {dayNames.map((dayName, dayIndex) => {
                     const date = weekDates[dayIndex]
                     const dayData = days[dayIndex] || { events: [] }
                     const isOpen = selectedDay === dayIndex
@@ -813,7 +820,7 @@ export default function CalendarPage() {
                           className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-700 transition">
                           <div className="flex items-center gap-3">
                             <span className="text-sm font-medium">{dayName}</span>
-                            {date && <span className="text-zinc-500 text-xs">{date.getDate()}/{date.getMonth() + 1}</span>}
+                            {date && <span className="text-zinc-500 text-xs">{fmtDayMonth(date)}</span>}
                             {dayData.events?.length > 0 && (
                               <span className="bg-zinc-700 text-zinc-300 text-xs px-1.5 py-0.5 rounded-full">{dayData.events.length}</span>
                             )}
@@ -849,17 +856,17 @@ export default function CalendarPage() {
                               </div>
                             )}
                             <div className="bg-zinc-900 rounded-xl p-3 space-y-2">
-                              <p className="text-zinc-500 text-xs font-medium">+ Nouvel évènement</p>
+                              <p className="text-zinc-500 text-xs font-medium">+ {t('week.newEvent')}</p>
                               <input type="text" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && addEventToDay(dayIndex)}
-                                placeholder="Titre *"
+                                placeholder={t('week.titlePh')}
                                 className="w-full bg-zinc-800 text-white p-2 rounded-lg outline-none text-sm border border-zinc-700 focus:border-zinc-500" />
                               <textarea value={newEventDesc} onChange={e => setNewEventDesc(e.target.value)}
-                                placeholder="Description (optionnel)" rows={2}
+                                placeholder={t('week.descPh')} rows={2}
                                 className="w-full bg-zinc-800 text-white p-2 rounded-lg outline-none text-sm border border-zinc-700 focus:border-zinc-500 resize-none" />
                               <div>
                                 <label className="flex items-center gap-2 bg-zinc-800 text-zinc-400 p-2 rounded-lg cursor-pointer hover:bg-zinc-700 text-xs border border-zinc-700 transition">
-                                  📷 {uploadingEvent ? 'Upload...' : `Ajouter des photos${newEventPhotos.length > 0 ? ` (${newEventPhotos.length})` : ''}`}
+                                  📷 {uploadingEvent ? t('theme.uploading') : `${t('week.addPhotos')}${newEventPhotos.length > 0 ? ` (${newEventPhotos.length})` : ''}`}
                                   <input type="file" accept="image/*" multiple onChange={uploadEventPhoto} className="hidden" />
                                 </label>
                                 {newEventPhotos.length > 0 && (
@@ -876,7 +883,7 @@ export default function CalendarPage() {
                               </div>
                               <button onClick={() => addEventToDay(dayIndex)} disabled={!newEventTitle.trim()}
                                 className="w-full bg-white text-black font-bold p-2 rounded-lg text-sm hover:bg-zinc-200 transition disabled:opacity-40">
-                                Ajouter
+                                {t('week.add')}
                               </button>
                             </div>
                           </div>

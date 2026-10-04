@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useI18n } from '@/lib/i18n'
 
 export default function UsersPage() {
+  const { t } = useI18n()
   const [user, setUser] = useState<any>(null)
   const [query, setQuery] = useState('')
   const [users, setUsers] = useState<any[]>([])
@@ -56,7 +58,7 @@ export default function UsersPage() {
   return (
     <div className="min-h-screen bg-black text-white p-6 pb-20">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Trouver des gens</h1>
+        <h1 className="text-3xl font-bold mb-8">{t('users.title')}</h1>
 
         <div className="flex gap-2 mb-6">
           <input
@@ -64,7 +66,7 @@ export default function UsersPage() {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && searchUsers()}
-            placeholder="Rechercher par nom ou @username..."
+            placeholder={t('users.placeholder')}
             className="flex-1 bg-zinc-900 text-white p-3 rounded-lg outline-none border border-zinc-800 focus:border-zinc-600"
           />
           <button onClick={searchUsers}
@@ -73,7 +75,7 @@ export default function UsersPage() {
           </button>
         </div>
 
-        {loading && <p className="text-zinc-400 text-center">Recherche en cours...</p>}
+        {loading && <p className="text-zinc-400 text-center">{t('common.searching')}</p>}
 
         <div className="space-y-3">
           {users.map(u => (
@@ -86,7 +88,7 @@ export default function UsersPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="font-bold truncate">{u.full_name || u.username || 'Utilisateur'}</p>
+                  <p className="font-bold truncate">{u.full_name || u.username || t('common.user')}</p>
                   {u.is_private && <span className="text-xs text-zinc-500">🔒</span>}
                 </div>
                 {u.username && <p className="text-zinc-400 text-sm">@{u.username}</p>}
@@ -100,8 +102,8 @@ export default function UsersPage() {
                     : 'bg-white text-black hover:bg-zinc-200'}`}
               >
                 {following.includes(u.id)
-                  ? 'Suivi ✓'
-                  : u.is_private ? 'Demander' : 'Suivre'}
+                  ? t('users.following')
+                  : u.is_private ? t('users.request') : t('users.follow')}
               </button>
             </div>
           ))}
