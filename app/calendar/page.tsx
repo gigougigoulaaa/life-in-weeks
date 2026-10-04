@@ -60,6 +60,28 @@ const COLOR_FIELDS: { key: keyof ThemeType, label: string }[] = [
   { key: 'future', label: 'Semaines à venir (contour)' },
 ]
 
+// Palette de 84 couleurs : 12 gris + 12 teintes × 6 luminosités (du plus clair au plus foncé)
+function hslToHex(h: number, s: number, l: number): string {
+  s /= 100
+  l /= 100
+  const k = (n: number) => (n + h / 30) % 12
+  const a = s * Math.min(l, 1 - l)
+  const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))
+  const toHex = (x: number) => Math.round(x * 255).toString(16).padStart(2, '0')
+  return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`
+}
+
+const NEUTRALS = Array.from({ length: 12 }, (_, i) => {
+  const v = Math.round((i * 255) / 11).toString(16).padStart(2, '0')
+  return `#${v}${v}${v}`
+})
+const HUES = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
+const LIGHTNESS = [88, 74, 60, 46, 32, 18]
+const PALETTE: string[] = [
+  ...NEUTRALS,
+  ...LIGHTNESS.flatMap(l => HUES.map(h => hslToHex(h, 85, l))),
+]
+
 const EMPTY_DAYS = () => Array(7).fill(null).map(() => ({ events: [] }))
 
 function parseDays(raw: any): any[] {
@@ -97,6 +119,7 @@ export default function CalendarPage() {
   const [savedWeeks, setSavedWeeks] = useState<any[]>([])
   const [showThemes, setShowThemes] = useState(false)
   const [theme, setTheme] = useState<ThemeType>(THEMES[0])
+  const [openColorKey, setOpenColorKey] = useState<keyof ThemeType | null>(null)
   const [cellShape, setCellShape] = useState('rounded-full')
   const [bgImage, setBgImage] = useState('')
   const [uploadingBg, setUploadingBg] = useState(false)
@@ -517,14 +540,46 @@ export default function CalendarPage() {
               ))}
             </div>
             <p className="text-zinc-400 text-xs mb-2">Couleurs personnalisées</p>
-            <div className="space-y-2 mb-3">
-              {COLOR_FIELDS.map(f => (
-                <label key={f.key} className="flex items-center justify-between gap-3 text-xs text-zinc-300">
-                  <span>{f.label}</span>
-                  <input type="color" value={getColor(f.key)} onChange={e => updateColor(f.key, e.target.value)}
-                    className="w-10 h-7 rounded cursor-pointer border border-zinc-700 bg-transparent p-0" />
-                </label>
-              ))}
+            <div className="space-y-1.5 mb-3">
+              {COLOR_FIELDS.map(f => {
+                const current = getColor(f.key)
+                const isOpen = openColorKey === f.key
+                return (
+                  <div key={f.key} className="rounded-xl border border-zinc-800">
+                    <button onClick={() => setOpenColorKey(isOpen ? null : f.key)}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-xs text-zinc-300">
+                      <span>{f.label}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="w-8 h-5 rounded border border-zinc-600" style={{ backgroundColor: current }} />
+                        <span className="text-zinc-500">{isOpen ? '▲' : '▼'}</span>
+                      </span>
+                    </button>
+                    {isOpen && (
+                      <div className="px-3 pb-3">
+                        <div className="grid grid-cols-12 gap-1">
+                          {PALETTE.map(c => {
+                            const selected = current.toLowerCase() === c.toLowerCase()
+                            return (
+                              <button key={c} onClick={() => updateColor(f.key, c)} aria-label={c}
+                                className="aspect-square rounded-md border"
+                                style={{
+                                  backgroundColor: c,
+                                  borderColor: selected ? '#ffffff' : '#3f3f46',
+                                  boxShadow: selected ? '0 0 0 2px #71717a' : undefined
+                                }} />
+                            )
+                          })}
+                        </div>
+                        <label className="flex items-center justify-between gap-3 mt-3 text-xs text-zinc-400">
+                          <span>Autre couleur…</span>
+                          <input type="color" value={current} onChange={e => updateColor(f.key, e.target.value)}
+                            className="w-10 h-7 rounded cursor-pointer border border-zinc-700 bg-transparent p-0" />
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
             <button onClick={resetColors}
               className="mb-4 px-3 py-1.5 rounded-lg text-xs border border-zinc-700 text-zinc-400 hover:border-zinc-500 transition">
