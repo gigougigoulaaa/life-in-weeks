@@ -567,6 +567,15 @@ export default function CalendarPage() {
               <p className="text-zinc-400 text-xs">{t('common.language')}</p>
               <LanguageSelector showName />
             </div>
+            <p className="text-zinc-400 text-xs mb-2">{t('layout.title')}</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {LAYOUTS.map(l => (
+                <button key={l.key} onClick={() => chooseLayout(l.key)}
+                  className={`px-3 py-2 rounded-xl text-xs border transition ${eventLayout === l.key ? 'border-white text-white' : 'border-zinc-700 text-zinc-400'}`}>
+                  {l.icon} {t(l.labelKey)}
+                </button>
+              ))}
+            </div>
             <p className="text-zinc-400 text-xs mb-2">{t('theme.color')}</p>
             <div className="grid grid-cols-4 gap-2 mb-4">
               {THEMES.map(th => (
@@ -790,17 +799,6 @@ export default function CalendarPage() {
             </div>
 
             <div className="p-5">
-              {/* Choix de la disposition */}
-              <div className="flex items-center gap-1.5 mb-4 overflow-x-auto">
-                <span className="text-zinc-500 text-xs mr-1 whitespace-nowrap">{t('layout.title')}</span>
-                {LAYOUTS.map(l => (
-                  <button key={l.key} onClick={() => chooseLayout(l.key)}
-                    className={`px-2.5 py-1 rounded-lg text-xs border whitespace-nowrap transition ${eventLayout === l.key ? 'border-white text-white' : 'border-zinc-700 text-zinc-400'}`}>
-                    {l.icon} {t(l.labelKey)}
-                  </button>
-                ))}
-              </div>
-
               {allEvents.length === 0 ? (
                 <p className="text-zinc-600 text-sm text-center py-6">{t('week.none')}</p>
               ) : (() => {
