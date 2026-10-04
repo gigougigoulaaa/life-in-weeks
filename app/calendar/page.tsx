@@ -34,7 +34,7 @@ const THEMES = [
   { name: 'Or', accent: '#fbbf24', past: '#92400e', bg: '#1a1400' },
 ]
 
-const END_YEAR = 2500
+const END_YEAR = 2150
 const EMPTY_DAYS = () => Array(7).fill(null).map(() => ({ events: [] }))
 
 function parseDays(raw: any): any[] {
@@ -46,8 +46,8 @@ function parseDays(raw: any): any[] {
   return result
 }
 
-// Sur téléphone : grosses cases fixes (16 px), on affiche une décennie à la fois
-// et on fait défiler la grille horizontalement.
+// Sur téléphone : grosses cases fixes (16 px) dans une zone qui défile
+// horizontalement et verticalement (toute la vie, jusqu'à END_YEAR).
 // Sur ordinateur : les 52 semaines tiennent toujours dans la largeur disponible.
 function computeLayout(containerWidth: number) {
   const isMobile = containerWidth < 600
@@ -100,8 +100,6 @@ export default function CalendarPage() {
   const [layout, setLayout] = useState(() =>
     computeLayout(typeof window !== 'undefined' ? window.innerWidth : 1000)
   )
-  // Décennie affichée sur téléphone (par défaut : celle de l'année en cours)
-  const [decadeStart, setDecadeStart] = useState(Math.floor(new Date().getFullYear() / 10) * 10)
   const containerRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -337,36 +335,21 @@ export default function CalendarPage() {
   const totalEvents = days.reduce((acc, d) => acc + (d?.events?.length || 0), 0)
   const { cellSize, cellGap, yearColWidth, sideMargin } = layout
 
-  // Décennies disponibles sur téléphone (une vie de 100 ans)
-  const lastYear = startYear ? startYear + 100 : 0
-  const minDecade = startYear ? Math.floor(startYear / 10) * 10 : 0
-  const maxDecade = startYear ? Math.floor(lastYear / 10) * 10 : 0
-  const decadeYears = startYear
-    ? Array.from({ length: 10 }, (_, i) => decadeStart + i).filter(y => y >= startYear && y <= lastYear)
-    : []
-
   // Fait défiler la grille pour centrer la semaine actuelle à l'écran
   const focusCurrentWeek = (smooth = false) => {
     const el = scrollRef.current
     if (!el) return
+    const row = el.querySelector(`[data-year="${currentYear}"]`) as HTMLElement | null
     const x = yearColWidth + (currentWeek - 1) * (cellSize + cellGap) + cellSize / 2 - el.clientWidth / 2
-    el.scrollTo({ left: Math.max(0, x), behavior: smooth ? 'smooth' : 'auto' })
+    const y = row ? row.offsetTop + row.offsetHeight / 2 - el.clientHeight / 2 : 0
+    el.scrollTo({ left: Math.max(0, x), top: Math.max(0, y), behavior: smooth ? 'smooth' : 'auto' })
   }
 
-  // Focus automatique : à l'ouverture, au changement de décennie et à la rotation de l'écran
+  // Focus automatique : à l'ouverture et à la rotation de l'écran
   useEffect(() => {
     if (!birthDate || !layout.isMobile) return
-    const el = scrollRef.current
-    if (!el) return
-    if (currentYear >= decadeStart && currentYear <= decadeStart + 9) focusCurrentWeek()
-    else el.scrollTo({ left: 0 })
-  }, [birthDate, layout.isMobile, layout.cellSize, decadeStart])
-
-  const goToToday = () => {
-    const d = Math.floor(currentYear / 10) * 10
-    if (d === decadeStart) focusCurrentWeek(true)
-    else setDecadeStart(d)
-  }
+    focusCurrentWeek()
+  }, [birthDate, layout.isMobile, layout.cellSize])
 
   const renderCell = (year: number, weekNum: number) => {
     const isPast = year < currentYear || (year === currentYear && weekNum < currentWeek)
@@ -583,40 +566,37 @@ export default function CalendarPage() {
 
             {layout.isMobile ? (
               <>
-                {/* Navigation par décennie (téléphone) */}
-                <div className="flex items-center justify-between mb-3 gap-2">
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setDecadeStart(d => d - 10)} disabled={decadeStart <= minDecade}
-                      className="w-9 h-9 rounded-lg border border-zinc-700 text-lg disabled:opacity-30">‹</button>
-                    <span className="text-sm font-bold w-28 text-center">{decadeStart} – {decadeStart + 9}</span>
-                    <button onClick={() => setDecadeStart(d => d + 10)} disabled={decadeStart >= maxDecade}
-                      className="w-9 h-9 rounded-lg border border-zinc-700 text-lg disabled:opacity-30">›</button>
-                  </div>
-                  <button onClick={goToToday}
+                {/* Bouton retour à la semaine actuelle (téléphone) */}
+                <div className="flex justify-end mb-3">
+                  <button onClick={() => focusCurrentWeek(true)}
                     className="px-3 h-9 rounded-lg border text-xs font-medium whitespace-nowrap"
                     style={{ borderColor: theme.accent, color: theme.accent }}>
                     Aujourd'hui
                   </button>
                 </div>
 
-                {/* Grille d'une décennie, défilement horizontal */}
-                <div ref={scrollRef} className="overflow-x-auto pb-2">
-                  <div style={{ width: yearColWidth + 52 * (cellSize + cellGap) }}>
+                {/* Toute la vie, défilement dans les deux sens */}
+                <div ref={scrollRef} className="overflow-auto"
+                  style={{ height: 'calc(100dvh - 330px)', minHeight: 320, overscrollBehavior: 'contain' }}>
+                  <div style={{ width: yearColWidth + 52 * (cellSize + cellGap), position: 'relative' }}>
 
-                    {/* Numéros de semaines */}
-                    <div className="flex" style={{ marginBottom: 6 }}>
+                    {/* Numéros de semaines (restent en haut pendant le défilement) */}
+                    <div className="flex" style={{
+                      position: 'sticky', top: 0, zIndex: 6, paddingBottom: 6,
+                      backgroundColor: theme.bg + 'e6'
+                    }}>
                       <div style={{
-                        width: yearColWidth, flexShrink: 0, position: 'sticky', left: 0, zIndex: 5,
-                        backgroundColor: theme.bg + 'e6'
+                        width: yearColWidth, flexShrink: 0, position: 'sticky', left: 0, zIndex: 7,
+                        backgroundColor: theme.bg
                       }} />
                       {Array.from({ length: 52 }, (_, i) => {
                         const n = i + 1
-                        const isNow = currentYear >= decadeStart && currentYear <= decadeStart + 9 && n === currentWeek
+                        const isNow = n === currentWeek
                         const show = n === 1 || n % 5 === 0 || isNow
                         return (
                           <div key={i} style={{
                             width: cellSize, marginRight: cellGap, flexShrink: 0, textAlign: 'center',
-                            fontSize: '9px', lineHeight: 1,
+                            fontSize: '9px', lineHeight: 1, paddingTop: 2,
                             color: isNow ? theme.accent : theme.past,
                             fontWeight: isNow ? 700 : 400
                           }}>
@@ -627,8 +607,8 @@ export default function CalendarPage() {
                     </div>
 
                     {/* Lignes des années */}
-                    {decadeYears.map(year => (
-                      <div key={year} className="flex items-center" style={{ marginBottom: cellGap + 2 }}>
+                    {years.map(year => (
+                      <div key={year} data-year={year} className="flex items-center" style={{ marginBottom: cellGap + 2 }}>
                         <div style={{
                           width: yearColWidth, flexShrink: 0, position: 'sticky', left: 0, zIndex: 5,
                           backgroundColor: theme.bg + 'e6', textAlign: 'right', paddingRight: 8,
