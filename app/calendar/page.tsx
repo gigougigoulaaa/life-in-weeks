@@ -109,6 +109,23 @@ function Media({ url, className, controls = true }: { url: string, className?: s
   return <img src={url} alt="" loading="lazy" className={className} />
 }
 
+// Logo : une petite grille de semaines, la dernière allumée = « maintenant »
+function Logo({ accent, color }: { accent: string, color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      {Array.from({ length: 9 }, (_, i) => {
+        const cx = 4 + (i % 3) * 7
+        const cy = 4 + Math.floor(i / 3) * 7
+        const lit = i === 5
+        const filled = i < 5
+        return <circle key={i} cx={cx} cy={cy} r={2.4}
+          fill={lit ? accent : filled ? color : 'none'}
+          stroke={lit ? accent : color} strokeWidth={1} opacity={filled || lit ? 1 : 0.5} />
+      })}
+    </svg>
+  )
+}
+
 const EMPTY_DAYS = () => Array(7).fill(null).map(() => ({ events: [] }))
 
 function parseDays(raw: any): any[] {
@@ -126,7 +143,7 @@ function parseDays(raw: any): any[] {
 function computeLayout(containerWidth: number) {
   const isMobile = containerWidth < 600
   if (isMobile) {
-    return { cellSize: 16, cellGap: 4, yearColWidth: 34, sideMargin: 4, isMobile }
+    return { cellSize: 16, cellGap: 4, yearColWidth: 40, sideMargin: 4, isMobile }
   }
   const yearColWidth = 80
   const sideMargin = 35
@@ -267,7 +284,7 @@ export default function CalendarPage() {
 
   // Couleurs effectives (valeurs par défaut si l'utilisateur n'a rien choisi)
   const textColor = theme.text ?? '#ffffff'
-  const labelColor = theme.label ?? theme.past
+  const labelColor = theme.label ?? '#a1a1aa'
   const futureColor = theme.future ?? theme.past + '60'
   const fillColor = theme.filled ?? theme.accent
   const memoryColor = theme.memory ?? '#fbbf24'
@@ -440,10 +457,12 @@ export default function CalendarPage() {
         className={`${cellShape} transition-transform hover:scale-125 ${isBeforeBirth ? 'cursor-default' : 'cursor-pointer'}`}
         style={{
           width: cellSize, height: cellSize, marginRight: cellGap, flexShrink: 0,
-          opacity: isBeforeBirth ? 0 : 1,
-          backgroundColor: isBeforeBirth ? 'transparent' : isCurrent ? theme.accent : isMemory ? memoryColor : hasSaved ? fillColor + '99' : isPast ? theme.past : 'transparent',
+          // Semaines passées ordinaires : discrètes. Semaines avec souvenirs : pleines et lumineuses.
+          opacity: isBeforeBirth ? 0 : (isPast && !hasSaved && !isMemory && !isCurrent) ? 0.55 : 1,
+          backgroundColor: isBeforeBirth ? 'transparent' : isCurrent ? theme.accent : isMemory ? memoryColor : hasSaved ? fillColor : isPast ? theme.past : 'transparent',
           borderWidth: isBeforeBirth ? 0 : 1, borderStyle: 'solid',
           borderColor: isBeforeBirth ? 'transparent' : isCurrent ? theme.accent : isMemory ? memoryColor : hasSaved ? fillColor : isPast ? theme.past : futureColor,
+          boxShadow: isBeforeBirth ? undefined : isCurrent ? `0 0 8px ${theme.accent}` : (isMemory || hasSaved) ? `0 0 5px ${isMemory ? memoryColor : fillColor}` : undefined,
           outline: hasLocation ? `2px solid ${theme.accent}` : undefined
         }} />
     )
@@ -459,17 +478,20 @@ export default function CalendarPage() {
       <div className="px-4 pt-6 sm:pt-8">
 
         {/* Header */}
-        <div className="flex justify-between items-center mb-6 sm:mb-16">
-          <h1 className="text-xl sm:text-3xl font-bold whitespace-nowrap">Life in Weeks</h1>
-          <div className="flex gap-1 sm:gap-2 items-center flex-shrink-0">
+        <div className="flex justify-between items-center mb-3 sm:mb-5 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Logo accent={theme.accent} color={textColor} />
+            <h1 className="text-lg sm:text-2xl font-bold whitespace-nowrap tracking-tight">Life in Weeks</h1>
+          </div>
+          <div className="flex gap-1.5 items-center flex-shrink-0">
             {memories.length > 0 && (
               <button onClick={() => setShowMemories(true)}
-                className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-yellow-500 text-yellow-400 hover:bg-yellow-500/10 transition whitespace-nowrap">
+                className="h-9 min-w-9 px-2.5 text-sm rounded-lg border border-yellow-500 text-yellow-400 hover:bg-yellow-500/10 transition whitespace-nowrap">
                 ✨ {memories.length}
               </button>
             )}
             <button onClick={() => setShowNotifs(!showNotifs)}
-              className="relative text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-zinc-700 hover:border-zinc-500 transition">
+              className="relative h-9 w-9 flex items-center justify-center text-sm rounded-lg border border-zinc-700 hover:border-zinc-500 transition">
               🔔
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-white text-black font-bold w-4 h-4 rounded-full flex items-center justify-center text-xs">
@@ -477,24 +499,20 @@ export default function CalendarPage() {
                 </span>
               )}
             </button>
-            <button onClick={() => setShowThemes(!showThemes)}
-              className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-zinc-700 hover:border-zinc-500 transition whitespace-nowrap">
+            <button onClick={() => setShowThemes(!showThemes)} aria-label={t('cal.theme')}
+              className="h-9 px-2.5 flex items-center justify-center gap-1 text-sm rounded-lg border border-zinc-700 hover:border-zinc-500 transition whitespace-nowrap">
               🎨 <span className="hidden sm:inline">{t('cal.theme')}</span>
-            </button>
-            <button onClick={handleLogout} className="text-zinc-500 hover:text-white text-xs sm:text-sm whitespace-nowrap">
-              <span className="sm:hidden">{t('cal.logoutShort')}</span>
-              <span className="hidden sm:inline">{t('cal.logout')}</span>
             </button>
           </div>
         </div>
 
         {/* Barre de recherche */}
-        <div className="relative mb-4 sm:mb-8">
+        <div className="relative mb-3 sm:mb-5 max-w-xl">
           <input type="text" value={searchQuery} onChange={e => handleSearch(e.target.value)}
             onFocus={() => searchQuery && setShowSearch(true)}
             onBlur={() => setTimeout(() => setShowSearch(false), 200)}
             placeholder={`🔍 ${t('cal.search')}`}
-            className="w-full bg-zinc-900/90 text-white px-3 py-2 sm:py-2.5 rounded-xl outline-none border border-zinc-800 focus:border-zinc-600 text-sm" />
+            className="w-full bg-zinc-900/90 text-white px-3 h-10 rounded-xl outline-none border border-zinc-800 focus:border-zinc-600 text-sm" />
           {showSearch && (searchResults.length > 0 || userResults.length > 0) && (
             <div className="absolute left-0 right-0 mt-1 bg-zinc-900 rounded-xl border border-zinc-700 z-30 shadow-2xl overflow-hidden">
               {searchResults.length > 0 && (
@@ -656,6 +674,12 @@ export default function CalendarPage() {
                   className="px-2 py-1 rounded-lg text-xs border border-zinc-700 text-zinc-400">✕ {t('theme.remove')}</button>
               )}
             </div>
+            <div className="mt-5 pt-4 border-t border-zinc-800">
+              <button onClick={handleLogout}
+                className="px-3 py-1.5 rounded-lg text-xs border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 transition">
+                {t('cal.logout')}
+              </button>
+            </div>
           </div>
         )}
 
@@ -688,7 +712,7 @@ export default function CalendarPage() {
                         return (
                           <div key={i} style={{
                             width: cellSize, marginRight: cellGap, flexShrink: 0, textAlign: 'center',
-                            fontSize: '9px', lineHeight: 1,
+                            fontSize: '10px', lineHeight: 1,
                             color: isNow ? theme.accent : labelColor,
                             fontWeight: isNow ? 700 : 400
                           }}>
@@ -704,13 +728,14 @@ export default function CalendarPage() {
                 <div ref={scrollRef} onScroll={syncHeader} className="overflow-x-auto">
                   <div style={{ width: yearColWidth + 52 * (cellSize + cellGap), position: 'relative' }}>
                     {years.map(year => (
-                      <div key={year} data-year={year} className="flex items-center" style={{ marginBottom: cellGap + 2 }}>
+                      <div key={year} data-year={year} className="flex items-center"
+                        style={{ marginBottom: cellGap + 2 + (startYear !== null && (year - startYear) % 10 === 9 ? 10 : 0) }}>
                         <div style={{
                           width: yearColWidth, flexShrink: 0, position: 'sticky', left: 0, zIndex: 5,
                           backgroundColor: theme.bg, textAlign: 'right', paddingRight: 8,
                           color: year === currentYear ? theme.accent : labelColor,
-                          fontWeight: year === currentYear ? 700 : 400,
-                          fontSize: '11px', lineHeight: `${cellSize}px`
+                          fontWeight: year === currentYear || (startYear !== null && (year - startYear) % 10 === 0) ? 700 : 400,
+                          fontSize: '12px', lineHeight: `${cellSize}px`
                         }}>
                           {year}
                         </div>
@@ -734,7 +759,7 @@ export default function CalendarPage() {
                   {Array.from({ length: 52 }, (_, i) => (
                     <div key={i} style={{
                       width: cellSize, marginRight: cellGap, flexShrink: 0,
-                      textAlign: 'center', fontSize: cellSize < 6 ? '0px' : '9px', lineHeight: 1, color: labelColor
+                      textAlign: 'center', fontSize: cellSize < 6 ? '0px' : '10px', lineHeight: 1, color: labelColor
                     }}>
                       {(i + 1) % 5 === 0 ? i + 1 : ''}
                     </div>
@@ -743,11 +768,14 @@ export default function CalendarPage() {
 
                 {/* Grille complète (ordinateur) */}
                 {years.map(year => (
-                  <div key={year} className="flex items-center" style={{ marginBottom: cellGap }}>
+                  <div key={year} className="flex items-center"
+                    style={{ marginBottom: cellGap + (startYear !== null && (year - startYear) % 10 === 9 ? 8 : 0) }}>
                     <div style={{
                       width: yearColWidth, flexShrink: 0, textAlign: 'right',
-                      paddingRight: '8px', color: labelColor, fontSize: cellSize < 6 ? '8px' : '11px', lineHeight: 1,
-                      opacity: year % 5 === 0 ? 1 : 0
+                      paddingRight: '8px', fontSize: cellSize < 6 ? '9px' : '12px', lineHeight: 1,
+                      color: year === currentYear ? theme.accent : labelColor,
+                      fontWeight: year === currentYear ? 700 : 400,
+                      opacity: year === currentYear || (startYear !== null && (year - startYear) % 5 === 0) ? 1 : 0
                     }}>
                       {year}
                     </div>
