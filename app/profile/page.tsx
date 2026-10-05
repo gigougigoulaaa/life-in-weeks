@@ -266,7 +266,7 @@ export default function ProfilePage() {
         )}
 
         {/* Pas encore de contenu */}
-        {!bio && favoriteWeekData.length === 0 && (
+        {!bio && favoriteWeekData.length === 0 && savedWeeks.length === 0 && (
           <div className="text-center py-12">
             <p className="text-zinc-600 text-sm">{t('profile.empty')}</p>
             <button onClick={() => setEditing(true)}

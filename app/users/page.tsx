@@ -79,7 +79,7 @@ export default function UsersPage() {
 
         <div className="space-y-3">
           {users.map(u => (
-            <div key={u.id} className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800 flex items-center gap-4">
+            <div key={u.id} className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800 flex items-center gap-4 cursor-pointer hover:border-zinc-700 transition" onClick={() => window.location.href = `/profile/${u.id}`}>
               <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden flex-shrink-0">
                 {u.avatar_url
                   ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -95,7 +95,7 @@ export default function UsersPage() {
                 {u.bio && <p className="text-zinc-500 text-xs mt-1 line-clamp-1">{u.bio}</p>}
               </div>
               <button
-                onClick={() => toggleFollow(u.id, u.is_private)}
+                onClick={(e) => { e.stopPropagation(); toggleFollow(u.id, u.is_private); }}
                 className={`px-4 py-2 rounded-lg text-sm font-bold transition flex-shrink-0
                   ${following.includes(u.id)
                     ? 'bg-zinc-700 text-white hover:bg-zinc-600'

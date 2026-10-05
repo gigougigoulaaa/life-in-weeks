@@ -707,7 +707,7 @@ export default function CalendarPage() {
                       <div key={year} data-year={year} className="flex items-center" style={{ marginBottom: cellGap + 2 }}>
                         <div style={{
                           width: yearColWidth, flexShrink: 0, position: 'sticky', left: 0, zIndex: 5,
-                          backgroundColor: theme.bg + 'e6', textAlign: 'right', paddingRight: 8,
+                          backgroundColor: theme.bg, textAlign: 'right', paddingRight: 8,
                           color: year === currentYear ? theme.accent : labelColor,
                           fontWeight: year === currentYear ? 700 : 400,
                           fontSize: '11px', lineHeight: `${cellSize}px`
@@ -722,8 +722,8 @@ export default function CalendarPage() {
 
                 {/* Bouton flottant : retour à la semaine actuelle */}
                 <button onClick={() => focusCurrentWeek(true)}
-                  className="fixed right-4 bottom-24 z-30 px-3 h-9 rounded-full border text-xs font-medium whitespace-nowrap"
-                  style={{ borderColor: theme.accent, color: theme.accent, backgroundColor: theme.bg + 'e6' }}>
+                  className="fixed right-4 bottom-24 z-30 px-4 h-10 rounded-full border text-xs font-medium whitespace-nowrap transition hover:opacity-80"
+                  style={{ borderColor: theme.accent, color: theme.accent, backgroundColor: theme.bg + 'e6', bottom: 'calc(5rem + 16px)' }}>
                   {t('cal.today')}
                 </button>
               </>

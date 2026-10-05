@@ -32,7 +32,7 @@ export default function MapPage() {
   if (!isClient) return null
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20">
+    <div className="min-h-screen bg-black text-white pb-20 relative z-10">
       <div className="p-6 pb-2">
         <h1 className="text-3xl font-bold mb-2">{t('map.title')}</h1>
         <p className="text-zinc-400 text-sm mb-4">
@@ -47,7 +47,7 @@ export default function MapPage() {
           <p className="text-zinc-600 text-sm">{t('map.emptyHint')}</p>
         </div>
       ) : (
-        <div style={{ height: 'calc(100vh - 180px)' }}>
+        <div style={{ height: 'calc(100vh - 200px)' }}>
           <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
           <MapContainer
             center={[weeks[0].location.lat, weeks[0].location.lng]}

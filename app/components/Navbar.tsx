@@ -20,7 +20,11 @@ export default function Navbar() {
   const [avatarUrl, setAvatarUrl] = useState('')
   const [age, setAge] = useState<number | null>(null)
 
+  // Ne pas afficher la navbar sur la page de login
+  if (pathname === '/login') return null
+
   useEffect(() => {
+    let channel: any
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return
 
@@ -36,7 +40,7 @@ export default function Navbar() {
         .eq('is_read', false)
       setUnread(count || 0)
 
-      const channel = supabase
+      channel = supabase
         .channel('navbar-notifs')
         .on('postgres_changes', {
           event: 'INSERT',
@@ -45,9 +49,9 @@ export default function Navbar() {
           filter: `user_id=eq.${data.user.id}`
         }, () => setUnread(prev => prev + 1))
         .subscribe()
-
-      return () => { supabase.removeChannel(channel) }
     })
+
+    return () => { if (channel) supabase.removeChannel(channel) }
   }, [])
 
   const links = [
@@ -78,10 +82,10 @@ export default function Navbar() {
                 }
               </div>
             ) : (
-              <span className="text-xl leading-none relative block h-6">
+              <span className="text-2xl leading-none relative block w-6 h-6">
                 {link.emoji}
                 {isCalendar && age !== null && (
-                  <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-black" style={{ marginTop: '2px' }}>
+                  <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-black" style={{ textShadow: '0 0.5px 1px rgba(0,0,0,0.3)' }}>
                     {age}
                   </span>
                 )}
