@@ -1,0 +1,103 @@
+// Textes français ajoutés pour la partie « pages ». Les autres langues sont dans les fichiers <code>.ts.
+// (Profil, connexion, recherche de personnes, recherche de souvenirs, notifications, compte, partage.)
+const part = {
+  // Profil
+  'profile.shareLink': 'Partager mon profil',
+  'profile.linkCopied': 'Lien copié',
+  'profile.lifeTitle': 'Ma vie en semaines',
+  'profile.lifeOf': '{n} semaines sur {total}',
+  'profile.lifePercent': '{n} % de 90 ans',
+  'profile.age': '{n} ans',
+  'profile.yearsLegend': 'Un point = une année',
+  'profile.noBirth': 'Indique ta date de naissance dans le calendrier pour voir ta vie en semaines.',
+  'profile.openCalendar': 'Ouvrir le calendrier',
+  'profile.shareLife': 'Partager ma vie en semaines',
+  'profile.shareLifeBusy': "Création de l'image…",
+  'profile.mediaTitle': 'Mes semaines en images',
+  'profile.mediaEmpty': 'Pas encore de photos',
+  'profile.mediaEmptyText': 'Ajoute des photos ou des vidéos à tes semaines depuis le calendrier.',
+  'profile.statsTitle': 'Statistiques',
+  'profile.changePhoto': 'Changer la photo',
+  'profile.photoSaved': 'Photo de profil mise à jour',
+  'profile.saved': 'Profil enregistré',
+  'profile.usernameTaken': "Ce nom d'utilisateur est déjà pris",
+  'profile.usernameHint': 'Lettres minuscules, chiffres, points et tirets bas.',
+  'profile.namePh': 'Ton nom',
+  'profile.aboutPh': 'Quelques mots sur toi…',
+  'profile.favChoose': 'Choisir des moments',
+  'profile.favHint': 'Ils apparaissent en haut de ton profil.',
+  'profile.favEmpty': 'Pas encore de moments favoris',
+  'profile.preferences': 'Préférences',
+  'profile.account': 'Compte',
+  'profile.logout': 'Se déconnecter',
+  'profile.emptyText': 'Ajoute une photo, une bio et tes moments favoris.',
+
+  // Compte (suppression)
+  'account.delete': 'Supprimer mon compte',
+  'account.deleteTitle': 'Supprimer définitivement ton compte ?',
+  'account.deleteMessage': 'Tous tes souvenirs, photos, vidéos, messages et abonnements seront effacés pour toujours. Cette action est irréversible.',
+  'account.deleteConfirm': 'Tout supprimer',
+  'account.deleting': 'Suppression…',
+  'account.deleted': 'Ton compte a été supprimé',
+  'account.notConfigured': "La suppression n'est pas encore activée sur le serveur",
+  'account.langNone': 'Aucune langue trouvée',
+
+  // Connexion
+  'login.heroTitle': 'Chaque point est une semaine de ta vie.',
+  'login.feature1': 'Une case pour chacune des semaines de ta vie',
+  'login.feature2': 'Des souvenirs, photos et lieux dans chaque semaine',
+  'login.feature3': 'Privé par défaut, partagé quand tu le décides',
+  'login.welcome': 'Bon retour',
+  'login.welcomeText': 'Connecte-toi pour retrouver tes semaines.',
+  'login.createTitle': 'Crée ton compte',
+  'login.createText': 'Gratuit. Tes souvenirs restent privés par défaut.',
+  'login.emailPh': 'toi@exemple.com',
+  'login.passwordPh': '6 caractères minimum',
+  'login.showPassword': 'Afficher le mot de passe',
+  'login.hidePassword': 'Masquer le mot de passe',
+  'login.askHave': 'Déjà un compte ?',
+  'login.askNo': 'Pas encore de compte ?',
+  'login.toSignin': 'Se connecter',
+  'login.toSignup': 'Créer un compte',
+  'login.sent': 'Vérifie ta boîte mail : un lien de confirmation vient de t’être envoyé.',
+  'login.errInvalid': 'Email ou mot de passe incorrect.',
+  'login.errNotConfirmed': 'Confirme d’abord ton adresse email avec le lien reçu.',
+  'login.errShort': 'Le mot de passe doit contenir au moins 6 caractères.',
+  'login.errExists': 'Un compte existe déjà avec cet email.',
+  'login.errEmail': 'Adresse email invalide.',
+  'login.errRate': 'Trop de tentatives. Réessaie dans quelques minutes.',
+
+  // Trouver des gens
+  'users.subtitle': 'Suis tes proches pour voir les semaines qu’ils partagent.',
+  'users.suggestions': 'Suggestions',
+  'users.results': 'Résultats',
+  'users.followingState': 'Abonné',
+  'users.requested': 'Demandé',
+  'users.private': 'Compte privé',
+  'users.noResultTitle': 'Personne trouvée',
+  'users.noResult': 'Aucun profil ne correspond à « {query} ».',
+  'users.noSuggestions': 'Pas encore de suggestions',
+  'users.noSuggestionsText': 'Invite tes proches à rejoindre Life in Weeks.',
+  'users.followNotif': '{name} a commencé à te suivre',
+  'users.requestNotif': '{name} demande à te suivre',
+
+  // Recherche de souvenirs
+  'search.subtitle': 'Dans tous tes souvenirs',
+  'search.startTitle': 'Retrouve un souvenir',
+  'search.startText': 'Cherche un titre, un évènement, un lieu…',
+  'search.noResultTitle': 'Aucun résultat',
+  'search.count': '{n} résultat(s)',
+  'search.weekYear': 'Semaine {n} · {year}',
+
+  // Notifications
+  'notif.emptyText': 'Quand quelqu’un te suit, commente ou réagit, tu le verras ici.',
+  'notif.unread': '{n} non lue(s)',
+  'notif.allRead': 'Tout est lu',
+
+  // Partage
+  'share.subtitle': '{n} semaines vécues · {p} %',
+  'share.title': 'Ma vie en semaines',
+  'share.failed': "Impossible de créer l'image",
+}
+
+export default part

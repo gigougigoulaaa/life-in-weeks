@@ -1,5 +1,11 @@
 // Langue de référence (français). Toutes les autres langues copient ces clés.
 // {n}, {year}, {query} sont remplacés automatiquement : ne pas les traduire.
+import core from './parts/core'
+import calendar from './parts/calendar'
+import social from './parts/social'
+import pages from './parts/pages'
+import chat from './parts/chat'
+
 const fr = {
   'app.tagline': 'Votre vie, semaine par semaine.',
 
@@ -140,6 +146,11 @@ const fr = {
   "layout.cards": "Cartes",
   "layout.album": "Album",
   "week.addMedia": "Ajouter des photos ou vidéos",
+  ...core,
+  ...calendar,
+  ...social,
+  ...pages,
+  ...chat,
 }
 
 export default fr

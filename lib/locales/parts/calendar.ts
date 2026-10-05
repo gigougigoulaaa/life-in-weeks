@@ -1,0 +1,60 @@
+// Textes français ajoutés pour la partie « calendar ». Les autres langues sont dans les fichiers <code>.ts.
+const part = {
+  // En-tête, recherche, notifications
+  'cal.searchPh': 'Rechercher un souvenir ou une personne',
+  'cal.settings': 'Réglages',
+  'cal.logoutTitle': 'Se déconnecter ?',
+  'cal.logoutText': 'Tu pourras te reconnecter à tout moment.',
+  'cal.notifEmptyText': 'Les nouveaux abonnés, commentaires et réactions apparaîtront ici.',
+  'cal.memPhotos': '{n} photos',
+
+  // Fenêtre d'une semaine
+  'week.range': '{from} – {to}',
+  'week.emptyText': 'Ajoute un premier moment juste en dessous.',
+  'week.date': 'Jour',
+  'week.time': 'Heure (optionnel)',
+  'week.deleteTitle': 'Supprimer cet évènement ?',
+  'week.deleteText': 'Il disparaîtra de ta semaine, avec ses photos et vidéos.',
+  'week.deleted': 'Évènement supprimé',
+  'week.added': 'Évènement ajouté',
+  'week.removeMedia': 'Retirer ce fichier',
+  'week.visibility': 'Visible par mes abonnés',
+  'week.visibilityOn': 'Tes abonnés peuvent voir cette semaine.',
+  'week.visibilityOff': 'Seul toi peux voir cette semaine.',
+  'week.nowPublic': 'Semaine visible par tes abonnés',
+  'week.nowPrivate': 'Semaine redevenue privée',
+
+  // Réglages du thème
+  'theme.preview': 'Aperçu',
+  'theme.layoutTitle': 'Affichage des semaines',
+  'theme.layoutHelp': "Comment s'affichent les évènements quand tu ouvres une semaine.",
+  'theme.colorsTitle': 'Couleurs',
+  'theme.colorsHelp': 'Choisis un thème, puis ajuste chaque couleur si tu veux.',
+  'theme.shapeHelp': 'Des points ronds ou des cases carrées.',
+  'theme.bgHelp': 'Une photo derrière ton calendrier.',
+  'theme.bgSaved': 'Fond mis à jour',
+  'theme.account': 'Compte',
+  'theme.legend.past': 'Passée',
+  'theme.legend.filled': 'Remplie',
+  'theme.legend.memory': 'Souvenir',
+  'theme.legend.now': 'Maintenant',
+  'theme.legend.future': 'À venir',
+
+  // Accueil (première utilisation)
+  'onb.step1Title': 'Ta vie tient sur une seule page',
+  'onb.step1Text': 'Chaque ligne est une année, de ta naissance jusqu’à bien plus tard.',
+  'onb.step2Title': 'Chaque case est une semaine. Remplis-les de souvenirs.',
+  'onb.step2Text': 'Moments, photos, vidéos : ton calendrier s’illumine au fil du temps.',
+  'onb.step3Title': 'Quand es-tu né·e ?',
+  'onb.step3Text': 'Ta date de naissance sert seulement à placer tes semaines.',
+  'onb.create': 'Créer mon calendrier',
+  'onb.progress': 'Étape {n} sur {total}',
+
+  // Rituel hebdomadaire
+  'ritual.title': "Ta semaine {n} n'est pas encore racontée",
+  'ritual.text': 'Quelques mots ou une photo suffisent.',
+  'ritual.cta': 'Raconter ma semaine',
+  'ritual.dismiss': 'Masquer pour cette semaine',
+}
+
+export default part

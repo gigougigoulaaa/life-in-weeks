@@ -1,158 +1,135 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useI18n } from '@/lib/i18n'
+import { isVideoUrl } from '@/lib/media'
+import Icon from '../components/Icon'
+import { card, input, page, EmptyState, Skeleton } from '../components/ui'
+
+type Week = {
+  id: string, year: number, week_number: number, title?: string | null, content?: string | null,
+  days?: { events?: { text?: string, description?: string, photos?: string[] }[] }[] | null,
+  media_urls?: string[] | null, location?: { name?: string } | null,
+}
+
+// Met en minuscules et retire les accents, caractère par caractère (les positions restent les mêmes)
+const fold = (s: string) => s.split('').map(c => c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')[0] ?? c).join('')
+
+// Tous les textes d'une semaine (titre, résumé, évènements, lieu)
+function textsOf(w: Week): string[] {
+  const out = [w.title || '', w.content || '', w.location?.name || '']
+  for (const d of w.days || []) for (const e of d?.events || []) out.push(e?.text || '', e?.description || '')
+  return out.filter(Boolean)
+}
+
+function photoOf(w: Week): string | null {
+  const all = [...(w.media_urls || []), ...(w.days || []).flatMap(d => (d?.events || []).flatMap(e => e?.photos || []))]
+  return all.find(u => u && !isVideoUrl(u)) || null
+}
+
+// Extrait d'environ 140 caractères autour du premier mot trouvé
+function snippet(text: string, word: string): string {
+  const i = fold(text).indexOf(word)
+  if (i < 0 || text.length <= 140) return text
+  const start = Math.max(0, i - 50)
+  return (start > 0 ? '…' : '') + text.slice(start, start + 140) + (start + 140 < text.length ? '…' : '')
+}
+
+// Surligne les mots recherchés
+function highlight(text: string, words: string[]): ReactNode[] {
+  const f = fold(text)
+  const marks = new Array(text.length).fill(false)
+  for (const w of words) {
+    let i = f.indexOf(w)
+    while (w && i >= 0) { for (let k = i; k < i + w.length; k++) marks[k] = true; i = f.indexOf(w, i + w.length) }
+  }
+  const out: ReactNode[] = []
+  let buf = '', on = false
+  const flush = () => { if (buf) out.push(on ? <mark key={out.length} className="bg-brand/25 text-fg rounded px-0.5">{buf}</mark> : buf); buf = '' }
+  text.split('').forEach((c, i) => { if (marks[i] !== on) { flush(); on = marks[i] } buf += c })
+  flush()
+  return out
+}
 
 export default function SearchPage() {
   const { t } = useI18n()
-  const [user, setUser] = useState<any>(null)
+  const [weeks, setWeeks] = useState<Week[] | null>(null)
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<any[]>([])
-  const [suggestions, setSuggestions] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [showSuggestions, setShowSuggestions] = useState(false)
+  const deferred = useDeferredValue(query)
 
+  // On charge une seule fois toutes mes semaines : la recherche se fait ensuite instantanément,
+  // y compris dans les évènements de chaque jour et les lieux.
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { window.location.href = '/login'; return }
-      setUser(data.user)
+      const { data: rows } = await supabase.from('weeks')
+        .select('id, year, week_number, title, content, days, media_urls, location')
+        .eq('user_id', data.user.id)
+        .order('year', { ascending: false }).order('week_number', { ascending: false })
+      setWeeks((rows as Week[]) || [])
     })
   }, [])
 
-  // Suggestions en temps réel pendant la frappe
-  const fetchSuggestions = useCallback(async (q: string) => {
-    if (!q.trim() || !user || q.length < 2) { setSuggestions([]); return }
-    const words = q.split(' ').filter(w => w.length > 0)
-    const orFilter = words.map(w => `title.ilike.%${w}%,content.ilike.%${w}%`).join(',')
-    const { data } = await supabase
-      .from('weeks')
-      .select('id, title, week_number, year, content')
-      .eq('user_id', user.id)
-      .or(orFilter)
-      .limit(5)
-    setSuggestions(data || [])
-  }, [user])
+  const words = useMemo(() => fold(deferred.trim()).split(/\s+/).filter(Boolean), [deferred])
 
-  useEffect(() => {
-    const timer = setTimeout(() => fetchSuggestions(query), 200)
-    return () => clearTimeout(timer)
-  }, [query, fetchSuggestions])
+  const results = useMemo(() => {
+    if (!weeks || words.length === 0) return []
+    return weeks.flatMap(w => {
+      const texts = textsOf(w)
+      const folded = texts.map(fold)
+      // Tous les mots doivent apparaître quelque part dans la semaine
+      if (!words.every(word => folded.some(s => s.includes(word)))) return []
+      const hit = texts.find((_, i) => folded[i].includes(words[0])) || ''
+      return [{ week: w, excerpt: hit === w.title ? (w.content || '') : snippet(hit, words[0]), photo: photoOf(w) }]
+    }).slice(0, 100)
+  }, [weeks, words])
 
-  const search = async (q?: string) => {
-    const searchQuery = q || query
-    if (!searchQuery.trim() || !user) return
-    setLoading(true)
-    setShowSuggestions(false)
-    const words = searchQuery.split(' ').filter(w => w.length > 0)
-    const orFilter = words.map(w => `title.ilike.%${w}%,content.ilike.%${w}%`).join(',')
-    const { data } = await supabase
-      .from('weeks')
-      .select('*')
-      .eq('user_id', user.id)
-      .or(orFilter)
-      .order('year', { ascending: false })
-    setResults(data || [])
-    setLoading(false)
-  }
-
-  const pickSuggestion = (week: any) => {
-    setQuery(week.title || t('common.weekOfYear', { n: week.week_number, year: week.year }))
-    setSuggestions([])
-    setShowSuggestions(false)
-    search(week.title || '')
-  }
-
-  const highlight = (text: string, q: string) => {
-    if (!q || !text) return text
-    const words = q.split(' ').filter(w => w.length > 0)
-    let result = text
-    words.forEach(word => {
-      const regex = new RegExp(`(${word})`, 'gi')
-      result = result.replace(regex, '**$1**')
-    })
-    return result.split('**').map((part, i) =>
-      words.some(w => part.toLowerCase() === w.toLowerCase())
-        ? <mark key={i} className="bg-yellow-400/30 text-yellow-200 rounded px-0.5">{part}</mark>
-        : part
-    )
-  }
+  const openWeek = (w: Week) => { window.location.assign(`/calendar?y=${w.year}&w=${w.week_number}`) }
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 pb-20">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">{t('search.title')}</h1>
+    <main className={page}>
+      <header className="mb-5">
+        <h1 className="text-2xl font-semibold tracking-tight">{t('search.title')}</h1>
+        <p className="text-sm text-muted mt-1">{t('search.subtitle')}</p>
+      </header>
 
-        <div className="relative mb-6">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={query}
-              onChange={e => { setQuery(e.target.value); setShowSuggestions(true) }}
-              onKeyDown={e => e.key === 'Enter' && search()}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              placeholder={t('search.placeholder')}
-              className="flex-1 bg-zinc-900 text-white p-3 rounded-lg outline-none border border-zinc-800 focus:border-zinc-600"
-            />
-            <button onClick={() => search()}
-              className="bg-white text-black font-bold px-6 rounded-lg hover:bg-zinc-200 transition">
-              🔍
-            </button>
-          </div>
-
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 overflow-hidden z-50 shadow-xl">
-              {suggestions.map(week => (
-                <button
-                  key={week.id}
-                  onMouseDown={() => pickSuggestion(week)}
-                  className="w-full text-left px-4 py-3 hover:bg-zinc-800 transition border-b border-zinc-800 last:border-0"
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-sm">{week.title || t('common.untitled')}</span>
-                    <span className="text-zinc-500 text-xs">S{week.week_number} {week.year}</span>
-                  </div>
-                  {week.content && (
-                    <p className="text-zinc-400 text-xs mt-0.5 line-clamp-1">{week.content}</p>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {loading && <p className="text-zinc-400 text-center">{t('common.searching')}</p>}
-
-        {results.length === 0 && query && !loading && (
-          <p className="text-zinc-400 text-center">{t('search.noResult', { query })}</p>
-        )}
-
-        <div className="space-y-4">
-          {results.map(week => (
-            <div key={week.id} className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-zinc-400 text-sm">{t('common.weekOfYear', { n: week.week_number, year: week.year })}</span>
-                <span className="text-xs px-2 py-1 rounded-full bg-zinc-800 text-zinc-400">
-                  {week.visibility === 'private' ? '🔒' : week.visibility === 'friends' ? '👥' : '🌍'}
-                </span>
-              </div>
-              {week.title && (
-                <h3 className="font-bold text-lg mb-1">{highlight(week.title, query)}</h3>
-              )}
-              {week.content && (
-                <p className="text-zinc-300 text-sm line-clamp-3">{highlight(week.content, query)}</p>
-              )}
-              {week.media_urls?.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mt-3">
-                  {week.media_urls.slice(0, 3).map((url: string, i: number) => (
-                    <img key={i} src={url} alt="" className="w-full h-20 object-cover rounded-lg" />
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+      <div className="relative mb-6">
+        <span className="absolute start-3.5 top-1/2 -translate-y-1/2 text-subtle pointer-events-none"><Icon name="search" size={18} /></span>
+        <input type="search" value={query} onChange={e => setQuery(e.target.value)} autoFocus
+          placeholder={t('search.placeholder')} className={`${input} h-12 ps-11 text-base sm:text-sm`} />
       </div>
-    </div>
+
+      {weeks === null ? (
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+        </div>
+      ) : words.length === 0 ? (
+        <EmptyState icon="sparkles" title={t('search.startTitle')} text={t('search.startText')} />
+      ) : results.length === 0 ? (
+        <EmptyState icon="search" title={t('search.noResultTitle')} text={t('search.noResult', { query: deferred.trim() })} />
+      ) : (
+        <>
+          <p className="text-xs text-subtle mb-3">{t('search.count', { n: results.length })}</p>
+          <ul className="flex flex-col gap-3">
+            {results.map(({ week, excerpt, photo }) => (
+              <li key={week.id}>
+                <button onClick={() => openWeek(week)}
+                  className={`${card} w-full flex items-start gap-4 p-4 text-start transition hover:bg-surface-2 hover:border-line-strong active:scale-[0.99]`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-brand">{t('search.weekYear', { n: week.week_number, year: week.year })}</p>
+                    <p className="font-semibold mt-1 truncate">{highlight(week.title || t('common.untitled'), words)}</p>
+                    {excerpt && <p className="text-sm text-muted mt-1 line-clamp-2 leading-relaxed">{highlight(excerpt, words)}</p>}
+                    {week.location?.name && (
+                      <p className="flex items-center gap-1 text-xs text-subtle mt-2"><Icon name="mapPin" size={12} /><span className="truncate">{week.location.name}</span></p>
+                    )}
+                  </div>
+                  {photo && <img src={photo} alt="" loading="lazy" className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover shrink-0 bg-surface-2" />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </main>
   )
 }
