@@ -109,24 +109,27 @@ export function Spinner({ size = 20 }: { size?: number }) {
 /* ------------------------------------------------------------------ */
 /* Toasts + confirmations                                              */
 /* ------------------------------------------------------------------ */
+type ToastOptions = { action?: { label: string, onClick: () => void }, duration?: number }
 type ConfirmOptions = { title: string, message?: string, confirmLabel?: string, danger?: boolean }
 type UIValue = {
-  toast: (message: string, kind?: 'success' | 'error' | 'info') => void
+  // options.action : bouton dans la bulle (ex. « Annuler »). options.duration : durée d'affichage en ms.
+  toast: (message: string, kind?: 'success' | 'error' | 'info', options?: ToastOptions) => void
   confirm: (options: ConfirmOptions) => Promise<boolean>
 }
 const UIContext = createContext<UIValue | null>(null)
 
 export function UIProvider({ children }: { children: ReactNode }) {
   const { t } = useI18n()
-  const [toasts, setToasts] = useState<{ id: number, message: string, kind: string }[]>([])
+  const [toasts, setToasts] = useState<{ id: number, message: string, kind: string, action?: ToastOptions['action'] }[]>([])
   const [confirmState, setConfirmState] = useState<ConfirmOptions | null>(null)
   const resolver = useRef<((v: boolean) => void) | null>(null)
 
-  const toast = useCallback((message: string, kind: 'success' | 'error' | 'info' = 'success') => {
+  const toast = useCallback((message: string, kind: 'success' | 'error' | 'info' = 'success', options?: ToastOptions) => {
     const id = Date.now() + Math.random()
-    setToasts(prev => [...prev, { id, message, kind }])
-    setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), 2800)
+    setToasts(prev => [...prev, { id, message, kind, action: options?.action }])
+    setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), options?.duration ?? (options?.action ? 6000 : 2800))
   }, [])
+  const dismissToast = (id: number) => setToasts(prev => prev.filter(x => x.id !== id))
 
   const confirm = useCallback((options: ConfirmOptions) => new Promise<boolean>(resolve => {
     resolver.current = resolve
@@ -143,6 +146,12 @@ export function UIProvider({ children }: { children: ReactNode }) {
           <div key={x.id} className="animate-toast-in flex items-center gap-2 bg-surface-2 border border-line-strong rounded-full ps-3 pe-4 py-2 text-sm shadow-2xl">
             <span className={x.kind === 'error' ? 'text-danger' : 'text-brand'}><Icon name={x.kind === 'error' ? 'info' : 'check'} size={16} /></span>
             {x.message}
+            {x.action && (
+              <button onClick={() => { x.action?.onClick(); dismissToast(x.id) }}
+                className="pointer-events-auto ms-1 -me-2 h-8 px-3 rounded-full text-brand font-semibold hover:bg-surface-3 active:scale-95 transition">
+                {x.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

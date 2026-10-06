@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Geist } from 'next/font/google'
 import './globals.css'
 import Navbar from './components/Navbar'
+import OfflineBanner from './components/OfflineBanner'
 import { UIProvider } from './components/ui'
 import { LanguageProvider } from '@/lib/i18n'
 
@@ -34,6 +35,7 @@ export default function RootLayout({
             {/* Sur ordinateur, la navigation est une colonne de 80 px à gauche */}
             <div className="md:ps-20 min-h-dvh">{children}</div>
             <Navbar />
+            <OfflineBanner />
           </UIProvider>
         </LanguageProvider>
       </body>

@@ -1,0 +1,38 @@
+// Textes français — help (les autres langues reprennent ces clés)
+const part = {
+  'help.title': "Centre d'aide",
+  'help.subtitle': 'Les réponses aux questions les plus fréquentes.',
+  'help.search': 'Rechercher dans l’aide',
+  'help.noResult': 'Aucun résultat',
+  'help.noResultText': 'Essaie avec d’autres mots, ou écris-nous.',
+  'help.stillNeed': 'Tu ne trouves pas ta réponse ?',
+  'help.contactSupport': 'Contacter le support',
+  'help.supportSubject': 'Aide pour Life in Weeks',
+
+  'help.q1': 'Comment fonctionne le calendrier ?',
+  'help.a1': 'Chaque point est une semaine de ta vie vécue. Touche une semaine pour y écrire un titre, un souvenir, ajouter des évènements jour par jour, des photos et un lieu. La semaine en cours est mise en avant.',
+  'help.q2': 'Comment ajouter des photos ou des vidéos ?',
+  'help.a2': 'Ouvre une semaine, puis utilise le bouton photo pour choisir des images ou une vidéo (MP4, MOV ou WebM). Les photos sont compressées automatiquement ; les vidéos ont une taille maximale.',
+  'help.q3': 'Comment rendre une semaine visible par mes abonnés ?',
+  'help.a3': 'Tout est privé par défaut. Dans la semaine, change sa visibilité de « Privée » à « Publique » : elle devient alors visible par les personnes autorisées à te voir. Tu peux la repasser en privé quand tu veux.',
+  'help.q4': 'Que change un compte privé ?',
+  'help.a4': "Avec un compte privé, chaque personne doit envoyer une demande d'abonnement que tu acceptes ou refuses. Active-le dans Paramètres, section Confidentialité.",
+  'help.q5': "Comment bloquer ou signaler quelqu'un ?",
+  'help.a5': "Ouvre son profil, touche le menu « Plus d'options », puis Bloquer ou Signaler. Une personne bloquée ne voit plus ton profil et ne peut plus t'écrire. Tu peux la débloquer dans Paramètres, section Confidentialité.",
+  'help.q6': 'Comment fonctionnent les messages ?',
+  'help.a6': "Tu peux écrire aux personnes depuis leur profil ou depuis l'onglet Messages. Dans Paramètres, tu choisis qui peut t'écrire : tout le monde, ou seulement les personnes que tu suis. Tu peux aussi mettre une conversation en sourdine.",
+  'help.q7': 'Comment supprimer mon compte, et puis-je le récupérer ?',
+  'help.a7': 'Va dans Paramètres, tout en bas, puis « Supprimer mon compte ». Ton compte est désactivé et invisible pour les autres. Pendant {n} jours, il te suffit de te reconnecter pour le récupérer ; passé ce délai, tout est effacé définitivement.',
+  'help.q8': 'Comment exporter mes données ?',
+  'help.a8': 'Dans Paramètres, section Confidentialité, touche « Exporter mes données ». Un fichier est téléchargé avec ton profil, tes semaines, tes messages, tes abonnements, tes commentaires et tes réactions.',
+  'help.q9': 'Comment changer de langue ?',
+  'help.a9': "Dans Paramètres, touche « Langue » et choisis ta langue dans la liste. Toute l'application change aussitôt.",
+  'help.q10': "Comment installer l'application ?",
+  'help.a10': "Sur Android et ordinateur, va dans Paramètres, section Application, puis « Installer l'application ». Sur iPhone, ouvre le site dans Safari, touche Partager, puis « Sur l'écran d'accueil ».",
+  'help.q11': "J'ai oublié mon mot de passe, que faire ?",
+  'help.a11': "Sur l'écran de connexion, touche « Mot de passe oublié » et suis le lien reçu par e-mail. Si tu es déjà connecté(e), tu peux le changer dans Paramètres, section Compte.",
+  'help.q12': 'Comment contacter le support ?',
+  'help.a12': "Écris-nous depuis le bouton « Contacter le support » de cette page ou depuis les Paramètres. Précise ce qui se passe et, si possible, joins une capture d'écran : nous te répondons dès que possible.",
+}
+
+export default part

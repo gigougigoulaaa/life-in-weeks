@@ -34,8 +34,8 @@ const part = {
 
   // Compte (suppression)
   'account.delete': 'Supprimer mon compte',
-  'account.deleteTitle': 'Supprimer définitivement ton compte ?',
-  'account.deleteMessage': 'Tous tes souvenirs, photos, vidéos, messages et abonnements seront effacés pour toujours. Cette action est irréversible.',
+  'account.deleteTitle': 'Supprimer ton compte ?',
+  'account.deleteMessage': 'Ton compte sera masqué et effacé définitivement dans 30 jours. Tu peux le récupérer d’ici là en te reconnectant.',
   'account.deleteConfirm': 'Tout supprimer',
   'account.deleting': 'Suppression…',
   'account.deleted': 'Ton compte a été supprimé',

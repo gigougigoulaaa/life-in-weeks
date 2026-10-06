@@ -3,12 +3,15 @@
 // J'aime, commentaires, carte de semaine et fiche de semaine en lecture seule.
 // Les tables reactions / comments peuvent ne pas exister encore (script supabase/social.sql
 // pas encore lancé) : dans ce cas les boutons se masquent au lieu de faire planter la page.
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useI18n } from '@/lib/i18n'
 import { isVideoUrl } from '@/lib/media'
+import { APP_NAME } from '@/lib/appInfo'
+import { blockUser, type ReportTarget } from '@/lib/moderation'
 import Icon from './Icon'
+import ReportSheet from './ReportSheet'
 import { Avatar, EmptyState, Sheet, Skeleton, Spinner, btn, useUI } from './ui'
 
 /* ------------------------------------------------------------------ */
@@ -166,7 +169,70 @@ export function ReactionButton({ weekId, ownerId, weekNumber }: { weekId: string
 /* ------------------------------------------------------------------ */
 /* Commentaires                                                        */
 /* ------------------------------------------------------------------ */
-type CommentRow = { id: string, week_id: string, user_id: string, content: string, created_at: string }
+// parent_id (réponses) et edited_at (modifié) viennent de supabase/settings.sql : peuvent ne pas exister encore.
+type CommentRow = {
+  id: string, week_id: string, user_id: string, content: string, created_at: string,
+  parent_id?: string | null, edited_at?: string | null,
+}
+
+const COMMENT_BASE = 'id, week_id, user_id, content, created_at'
+const UNDO_MS = 5000 // délai pendant lequel on peut annuler une suppression
+
+// Vrai si l'erreur vient d'une colonne qui n'existe pas encore (script SQL pas lancé)
+function isMissingColumn(err: { code?: string, message?: string } | null | undefined): boolean {
+  if (!err) return false
+  return err.code === '42703' || err.code === 'PGRST204' || /parent_id|edited_at/.test(err.message || '')
+}
+
+// Brouillon par semaine : pratique si on ferme la fenêtre par mégarde. Toujours en try/catch (navigation privée).
+const draftKey = (weekId: string) => `liw-comment-draft-${weekId}`
+function readDraft(weekId: string): string {
+  try { return localStorage.getItem(draftKey(weekId)) || '' } catch { return '' }
+}
+function writeDraft(weekId: string, value: string) {
+  try {
+    if (value) localStorage.setItem(draftKey(weekId), value)
+    else localStorage.removeItem(draftKey(weekId))
+  } catch { /* ignoré */ }
+}
+
+async function fetchComments(weekId: string): Promise<{ data: CommentRow[] | null, error: boolean }> {
+  const query = (cols: string) => supabase.from('comments').select(cols)
+    .eq('week_id', weekId).order('created_at', { ascending: true }).limit(200)
+  let res = await query(`${COMMENT_BASE}, parent_id, edited_at`)
+  // Anciennes colonnes seulement si les nouvelles n'existent pas encore
+  if (res.error) res = await query(COMMENT_BASE)
+  if (res.error) return { data: null, error: true }
+  return { data: res.data as unknown as CommentRow[], error: false }
+}
+
+// Insère un commentaire ; si parent_id n'existe pas encore, retombe sur un commentaire normal
+async function insertComment(row: { week_id: string, user_id: string, content: string, parent_id?: string }) {
+  const withParent = !!row.parent_id
+  let res = await supabase.from('comments').insert(row)
+    .select(withParent ? `${COMMENT_BASE}, parent_id` : COMMENT_BASE).single()
+  if (res.error && withParent && isMissingColumn(res.error)) {
+    const { parent_id: _ignored, ...plain } = row
+    void _ignored
+    res = await supabase.from('comments').insert(plain).select(COMMENT_BASE).single()
+  }
+  return { data: res.data as unknown as CommentRow | null, error: res.error }
+}
+
+// Modifie le texte ; si edited_at n'existe pas encore, on enregistre le texte seul
+async function updateComment(id: string, content: string): Promise<{ ok: boolean, editedAt: string | null }> {
+  const editedAt = new Date().toISOString()
+  let res = await supabase.from('comments').update({ content, edited_at: editedAt }).eq('id', id).select('id')
+  let stamp: string | null = editedAt
+  if (res.error && isMissingColumn(res.error)) {
+    res = await supabase.from('comments').update({ content }).eq('id', id).select('id')
+    stamp = null
+  }
+  // Aucune ligne modifiée = refusé par les règles de sécurité
+  return { ok: !res.error && (res.data?.length ?? 0) > 0, editedAt: stamp }
+}
+
+type ReplyTarget = { rootId: string, userId: string, name: string, mention: boolean }
 
 export function CommentsSheet({ weekId, ownerId, open, onClose, weekNumber, onCountChange }: {
   weekId: string
@@ -177,7 +243,7 @@ export function CommentsSheet({ weekId, ownerId, open, onClose, weekNumber, onCo
   onCountChange?: (n: number) => void
 }) {
   const { t, timeAgo } = useI18n()
-  const { toast, confirm } = useUI()
+  const { toast } = useUI()
   const [comments, setComments] = useState<CommentRow[]>([])
   const [authors, setAuthors] = useState<Record<string, PublicProfile>>({})
   const [me, setMe] = useState<{ id: string, name: string } | null>(null)
@@ -185,7 +251,18 @@ export function CommentsSheet({ weekId, ownerId, open, onClose, weekNumber, onCo
   const [failed, setFailed] = useState(false)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
-  const listEnd = useRef<HTMLDivElement>(null)
+  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
+  const [editing, setEditing] = useState<{ id: string, text: string } | null>(null)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [menuId, setMenuId] = useState<string | null>(null)
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Suppressions en attente (annulables 5 s) : id → minuteur + commentaire retiré de l'écran
+  const pending = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>, row: CommentRow }>())
+  // Dernières valeurs de t / toast, pour que les minuteurs n'utilisent jamais d'anciennes versions
+  const latest = useRef({ t, toast })
+  useEffect(() => { latest.current = { t, toast } })
 
   // Charge les profils manquants en une seule requête
   const loadAuthors = useCallback(async (ids: string[]) => {
@@ -195,17 +272,47 @@ export function CommentsSheet({ weekId, ownerId, open, onClose, weekNumber, onCo
     if (data) setAuthors(prev => ({ ...prev, ...Object.fromEntries(data.map(p => [p.id, p])) }))
   }, [])
 
+  // Supprime pour de bon un commentaire dont le délai d'annulation est écoulé
+  const runDelete = useCallback(async (id: string) => {
+    const entry = pending.current.get(id)
+    if (!entry) return
+    clearTimeout(entry.timer)
+    pending.current.delete(id)
+    const { error } = await supabase.from('comments').delete().eq('id', id)
+    if (error) {
+      // Échec : on remet le commentaire pour ne pas faire croire qu'il est supprimé
+      setComments(prev => (prev.some(x => x.id === id) ? prev : [...prev, entry.row].sort((a, b) => a.created_at.localeCompare(b.created_at))))
+      latest.current.toast(latest.current.t('common.error'), 'error')
+    }
+  }, [])
+
+  // Exécute tout de suite les suppressions en attente (fermeture de la fenêtre, de la page…)
+  const flushPending = useCallback(() => {
+    for (const id of Array.from(pending.current.keys())) void runDelete(id)
+  }, [runDelete])
+
+  useEffect(() => { if (!open) flushPending() }, [open, flushPending])
+  useEffect(() => {
+    window.addEventListener('pagehide', flushPending)
+    return () => {
+      window.removeEventListener('pagehide', flushPending)
+      flushPending()
+      if (scrollTimer.current) clearTimeout(scrollTimer.current)
+    }
+  }, [flushPending])
+
   useEffect(() => {
     if (!open) return
     let alive = true
     ;(async () => {
       setLoading(true)
       setFailed(false)
+      setReplyTo(null); setEditing(null); setMenuId(null)
+      setText(readDraft(weekId))
       setMe(await getMe())
-      const { data, error } = await supabase.from('comments').select('id, week_id, user_id, content, created_at')
-        .eq('week_id', weekId).order('created_at', { ascending: true }).limit(200)
+      const { data, error } = await fetchComments(weekId)
       if (!alive) return
-      if (error) { setFailed(true); setLoading(false); return }
+      if (error || !data) { setFailed(true); setLoading(false); return }
       setComments(data)
       await loadAuthors(data.map(c => c.user_id))
       if (alive) setLoading(false)
@@ -213,101 +320,242 @@ export function CommentsSheet({ weekId, ownerId, open, onClose, weekNumber, onCo
     return () => { alive = false }
   }, [open, weekId, loadAuthors])
 
-  const send = async (e: FormEvent) => {
-    e.preventDefault()
-    const content = text.trim().slice(0, 1000)
+  // Le compteur du bouton suit la liste (ajout, suppression, annulation)
+  useEffect(() => {
+    if (open && !loading && !failed) onCountChange?.(comments.length)
+  }, [comments.length, open, loading, failed, onCountChange])
+
+  const changeText = (value: string) => { setText(value); writeDraft(weekId, value) }
+
+  // Classement en fil : un seul niveau, toute réponse est rattachée au commentaire racine
+  const byId = new Map(comments.map(c => [c.id, c]))
+  const rootOf = (c: CommentRow): string => {
+    let cur = c
+    for (let i = 0; i < 20 && cur.parent_id && byId.has(cur.parent_id); i++) cur = byId.get(cur.parent_id)!
+    return cur.id
+  }
+  const repliesByRoot = new Map<string, CommentRow[]>()
+  const roots: CommentRow[] = []
+  for (const c of comments) {
+    const r = rootOf(c)
+    if (r === c.id) roots.push(c)
+    else repliesByRoot.set(r, [...(repliesByRoot.get(r) || []), c])
+  }
+
+  const nameOf = (userId: string) => profileName(authors[userId], t('common.user'))
+
+  const startReply = (c: CommentRow) => {
+    const rootId = rootOf(c)
+    setEditing(null)
+    setReplyTo({ rootId, userId: c.user_id, name: nameOf(c.user_id), mention: rootId !== c.id })
+    inputRef.current?.focus()
+  }
+
+  const send = async (e?: { preventDefault: () => void }) => {
+    e?.preventDefault()
+    let content = text.trim()
     if (!content || sending || !me) return
+    const target = replyTo
+    if (target?.mention) content = `@${target.name} ${content}`
+    content = content.slice(0, 1000)
     setSending(true)
-    const { data, error } = await supabase.from('comments')
-      .insert({ week_id: weekId, user_id: me.id, content })
-      .select('id, week_id, user_id, content, created_at').single()
+    const { data, error } = await insertComment({ week_id: weekId, user_id: me.id, content, ...(target ? { parent_id: target.rootId } : {}) })
     setSending(false)
     if (error || !data) { toast(t('common.error'), 'error'); return }
-    const next = [...comments, data]
-    setComments(next)
-    onCountChange?.(next.length)
+    setComments(prev => [...prev, data])
     setText('')
+    writeDraft(weekId, '')
+    setReplyTo(null)
     loadAuthors([me.id])
-    setTimeout(() => listEnd.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50)
-    if (ownerId !== me.id) {
-      notify(ownerId, 'comment', t('social.notifComment', { name: me.name || t('social.someone'), n: weekNumber ?? '' }).replace(/\s+$/, ''))
+    if (scrollTimer.current) clearTimeout(scrollTimer.current)
+    scrollTimer.current = setTimeout(() => document.getElementById(`comment-${data.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+
+    // Prévenir l'auteur du commentaire auquel on répond, puis le propriétaire de la semaine,
+    // sans jamais prévenir soi-même ni la même personne deux fois
+    const who = me.name || t('social.someone')
+    const notified = new Set([me.id])
+    if (target && !notified.has(target.userId)) {
+      notified.add(target.userId)
+      notify(target.userId, 'comment', t('social.notifReply', { name: who }))
+    }
+    if (!notified.has(ownerId)) {
+      notify(ownerId, 'comment', t('social.notifComment', { name: who, n: weekNumber ?? '' }).replace(/\s+$/, ''))
     }
   }
 
-  const remove = async (c: CommentRow) => {
-    const ok = await confirm({ title: t('social.deleteComment'), message: t('social.deleteCommentText'), confirmLabel: t('common.delete'), danger: true })
-    if (!ok) return
-    const { error } = await supabase.from('comments').delete().eq('id', c.id)
-    if (error) { toast(t('common.error'), 'error'); return }
-    const next = comments.filter(x => x.id !== c.id)
-    setComments(next)
-    onCountChange?.(next.length)
-    toast(t('social.commentDeleted'))
+  // Suppression avec annulation : le commentaire disparaît tout de suite, la base est mise à jour après 5 s
+  const remove = (c: CommentRow) => {
+    setMenuId(null)
+    setComments(prev => prev.filter(x => x.id !== c.id))
+    if (replyTo?.rootId === c.id) setReplyTo(null)
+    const timer = setTimeout(() => { void runDelete(c.id) }, UNDO_MS)
+    pending.current.set(c.id, { timer, row: c })
+    toast(t('social.commentDeleted'), 'success', {
+      duration: UNDO_MS,
+      action: { label: t('common.undo'), onClick: () => undoRemove(c.id) },
+    })
+  }
+
+  const undoRemove = (id: string) => {
+    const entry = pending.current.get(id)
+    if (!entry) return
+    clearTimeout(entry.timer)
+    pending.current.delete(id)
+    setComments(prev => [...prev, entry.row].sort((a, b) => a.created_at.localeCompare(b.created_at)))
+  }
+
+  const saveEdit = async () => {
+    if (!editing || savingEdit) return
+    const content = editing.text.trim().slice(0, 1000)
+    const original = comments.find(c => c.id === editing.id)
+    if (!content) return
+    if (original && original.content === content) { setEditing(null); return }
+    setSavingEdit(true)
+    const res = await updateComment(editing.id, content)
+    setSavingEdit(false)
+    if (!res.ok) { toast(t('common.error'), 'error'); return }
+    setComments(prev => prev.map(c => (c.id === editing.id ? { ...c, content, edited_at: res.editedAt ?? c.edited_at } : c)))
+    setEditing(null)
+  }
+
+  const itemClass = 'w-full h-10 px-3 rounded-lg flex items-center gap-2.5 text-sm text-start hover:bg-surface-3 transition'
+
+  const renderComment = (c: CommentRow, isReply: boolean) => {
+    const a = authors[c.user_id]
+    const name = profileName(a, t('common.user'))
+    const mine = !!me && c.user_id === me.id
+    const canDelete = mine || (!!me && ownerId === me.id) // le propriétaire de la semaine peut modérer
+    const isEditing = editing?.id === c.id
+    const menuOpen = menuId === c.id
+    return (
+      <li key={c.id} id={`comment-${c.id}`} className={`flex gap-3 animate-fade-in ${isReply ? 'ms-10' : ''}`}>
+        <Link href={profileHref(c.user_id, me?.id)} onClick={onClose} className="shrink-0">
+          <Avatar url={a?.avatar_url} name={name} size={isReply ? 28 : 36} />
+        </Link>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm">
+            <Link href={profileHref(c.user_id, me?.id)} onClick={onClose} className="font-semibold hover:underline">{name}</Link>
+            <span className="text-subtle text-xs ms-2">{timeAgo(c.created_at, true)}</span>
+            {c.edited_at && <span className="text-subtle text-xs ms-1.5">· {t('social.edited')}</span>}
+          </p>
+          {isEditing ? (
+            <div className="mt-1.5 space-y-2">
+              <textarea value={editing.text} onChange={e => setEditing({ id: c.id, text: e.target.value })} rows={3} maxLength={1000} autoFocus
+                aria-label={t('social.edit')}
+                className="w-full resize-none bg-surface-2 text-fg px-3.5 py-3 rounded-xl outline-none border border-line focus:border-brand/60 text-sm transition" />
+              <div className="flex gap-2">
+                <button type="button" onClick={saveEdit} disabled={!editing.text.trim() || savingEdit} className={`${btn.primary} h-10 px-4`}>
+                  {savingEdit && <Spinner size={14} />}{t('social.saveEdit')}
+                </button>
+                <button type="button" onClick={() => setEditing(null)} className={`${btn.secondary} h-10 px-4`}>{t('common.cancel')}</button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-fg/90 mt-0.5 whitespace-pre-wrap break-words leading-relaxed">{c.content}</p>
+          )}
+          {!isEditing && me && (
+            <button type="button" onClick={() => startReply(c)}
+              className="mt-0.5 -ms-2 inline-flex items-center gap-1.5 h-10 px-2 rounded-lg text-xs font-medium text-muted hover:text-fg hover:bg-surface-2 transition active:scale-95">
+              <Icon name="reply" size={15} />{t('social.reply')}
+            </button>
+          )}
+        </div>
+        {me && !isEditing && (
+          <div className="relative shrink-0 -me-2">
+            <button type="button" onClick={() => setMenuId(menuOpen ? null : c.id)} aria-label={t('common.more')} aria-expanded={menuOpen} className={btn.icon}>
+              <Icon name="dots" size={18} />
+            </button>
+            {menuOpen && (
+              <>
+                {/* Zone invisible : un clic à côté referme le menu */}
+                <button type="button" aria-hidden tabIndex={-1} onClick={() => setMenuId(null)} className="fixed inset-0 z-10 cursor-default" />
+                <div role="menu" className="absolute end-0 top-10 z-20 min-w-48 p-1 rounded-xl bg-surface-2 border border-line-strong shadow-2xl animate-pop-in">
+                  {mine && (
+                    <button role="menuitem" type="button" className={itemClass}
+                      onClick={() => { setMenuId(null); setReplyTo(null); setEditing({ id: c.id, text: c.content }) }}>
+                      <Icon name="pencil" size={16} />{t('social.edit')}
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button role="menuitem" type="button" className={`${itemClass} text-danger`} onClick={() => remove(c)}>
+                      <Icon name="trash" size={16} />{t('common.delete')}
+                    </button>
+                  )}
+                  {!mine && (
+                    <button role="menuitem" type="button" className={itemClass}
+                      onClick={() => { setMenuId(null); setReportTarget({ type: 'comment', id: c.id, userId: c.user_id }) }}>
+                      <Icon name="flag" size={16} />{t('mod.report')}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </li>
+    )
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title={t('social.comments')}>
-      <div className="flex flex-col min-h-[50dvh] md:min-h-[360px]">
-        <div className="flex-1 px-5 py-4">
-          {loading ? (
-            <div className="space-y-5">
-              {[0, 1, 2].map(i => (
-                <div key={i} className="flex gap-3">
-                  <Skeleton className="w-9 h-9 !rounded-full shrink-0" />
-                  <div className="flex-1 space-y-2"><Skeleton className="h-3 w-28" /><Skeleton className="h-3 w-full" /></div>
-                </div>
-              ))}
-            </div>
-          ) : failed ? (
-            <EmptyState icon="info" title={t('social.unavailable')} />
-          ) : comments.length === 0 ? (
-            <EmptyState icon="message" title={t('social.noComments')} text={t('social.noCommentsText')} />
-          ) : (
-            <ul className="space-y-5">
-              {comments.map(c => {
-                const a = authors[c.user_id]
-                const name = profileName(a, t('common.user'))
-                const canDelete = !!me && (c.user_id === me.id || ownerId === me.id)
-                return (
-                  <li key={c.id} className="group flex gap-3 animate-fade-in">
-                    <Link href={profileHref(c.user_id, me?.id)} onClick={onClose} className="shrink-0">
-                      <Avatar url={a?.avatar_url} name={name} size={36} />
-                    </Link>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm">
-                        <Link href={profileHref(c.user_id, me?.id)} onClick={onClose} className="font-semibold hover:underline">{name}</Link>
-                        <span className="text-subtle text-xs ms-2">{timeAgo(c.created_at, true)}</span>
-                      </p>
-                      <p className="text-sm text-fg/90 mt-0.5 whitespace-pre-wrap break-words leading-relaxed">{c.content}</p>
-                    </div>
-                    {canDelete && (
-                      <button onClick={() => remove(c)} aria-label={t('common.delete')}
-                        className={`${btn.icon} shrink-0 -me-2 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 hover:!text-danger`}>
-                        <Icon name="trash" size={16} />
-                      </button>
-                    )}
+    <>
+      {/* Pendant le signalement, Échap ne ferme que la fenêtre de signalement */}
+      <Sheet open={open} onClose={reportTarget ? () => {} : onClose} title={t('social.comments')}>
+        <div className="flex flex-col min-h-[50dvh] md:min-h-[360px]">
+          <div className="flex-1 px-5 py-4">
+            {loading ? (
+              <div className="space-y-5">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="flex gap-3">
+                    <Skeleton className="w-9 h-9 !rounded-full shrink-0" />
+                    <div className="flex-1 space-y-2"><Skeleton className="h-3 w-28" /><Skeleton className="h-3 w-full" /></div>
+                  </div>
+                ))}
+              </div>
+            ) : failed ? (
+              <EmptyState icon="info" title={t('social.unavailable')} />
+            ) : comments.length === 0 ? (
+              <EmptyState icon="message" title={t('social.noComments')} text={t('social.noCommentsText')} />
+            ) : (
+              <ul className="space-y-3 pb-16">
+                {roots.map(c => (
+                  <li key={c.id} className="list-none">
+                    <ul className="space-y-1">
+                      {renderComment(c, false)}
+                      {(repliesByRoot.get(c.id) || []).map(r => renderComment(r, true))}
+                    </ul>
                   </li>
-                )
-              })}
-            </ul>
-          )}
-          <div ref={listEnd} />
-        </div>
+                ))}
+              </ul>
+            )}
+          </div>
 
-        {!failed && (
-          <form onSubmit={send} className="sticky bottom-0 flex items-end gap-2 px-4 py-3 border-t border-line bg-surface">
-            <textarea value={text} onChange={e => setText(e.target.value)} rows={1} maxLength={1000}
-              placeholder={t('social.writeComment')} aria-label={t('social.writeComment')}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(e) } }}
-              className="flex-1 min-h-11 max-h-32 resize-none bg-surface-2 text-fg placeholder:text-subtle px-3.5 py-3 rounded-xl outline-none border border-line focus:border-brand/60 text-sm transition" />
-            <button type="submit" disabled={!text.trim() || sending || !me} aria-label={t('social.send')}
-              className="inline-flex items-center justify-center w-11 h-11 shrink-0 rounded-xl bg-brand text-ink hover:bg-brand-strong active:scale-95 transition disabled:opacity-40 disabled:pointer-events-none">
-              {sending ? <Spinner size={18} /> : <Icon name="send" size={18} />}
-            </button>
-          </form>
-        )}
-      </div>
-    </Sheet>
+          {!failed && (
+            <form onSubmit={send} className="sticky bottom-0 border-t border-line bg-surface">
+              {replyTo && (
+                <div className="flex items-center gap-2 ps-4 pe-1 pt-1 text-xs text-muted">
+                  <Icon name="reply" size={14} />
+                  <span className="flex-1 truncate">{t('social.replyingTo', { name: replyTo.name })}</span>
+                  <button type="button" onClick={() => setReplyTo(null)} aria-label={t('common.cancel')} className={btn.icon}>
+                    <Icon name="x" size={16} />
+                  </button>
+                </div>
+              )}
+              <div className="flex items-end gap-2 px-4 py-3">
+                <textarea ref={inputRef} value={text} onChange={e => changeText(e.target.value)} rows={1} maxLength={1000}
+                  placeholder={replyTo ? t('social.writeReply') : t('social.writeComment')} aria-label={replyTo ? t('social.writeReply') : t('social.writeComment')}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(e) } }}
+                  className="flex-1 min-h-11 max-h-32 resize-none bg-surface-2 text-fg placeholder:text-subtle px-3.5 py-3 rounded-xl outline-none border border-line focus:border-brand/60 text-sm transition" />
+                <button type="submit" disabled={!text.trim() || sending || !me} aria-label={t('social.send')}
+                  className="inline-flex items-center justify-center w-11 h-11 shrink-0 rounded-xl bg-brand text-ink hover:bg-brand-strong active:scale-95 transition disabled:opacity-40 disabled:pointer-events-none">
+                  {sending ? <Spinner size={18} /> : <Icon name="send" size={18} />}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </Sheet>
+      <ReportSheet target={reportTarget} onClose={() => setReportTarget(null)} />
+    </>
   )
 }
 
@@ -339,6 +587,85 @@ export function CommentButton({ weekId, ownerId, weekNumber }: { weekId: string,
       </button>
       <CommentsSheet weekId={weekId} ownerId={ownerId} weekNumber={weekNumber} open={open} onClose={close} onCountChange={setCount} />
     </>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Menu « ⋯ » d'une semaine d'autrui : signaler / bloquer              */
+/* ------------------------------------------------------------------ */
+export function WeekMenu({ week, author, me, onBlocked }: {
+  week: WeekRow
+  author?: PublicProfile | null
+  me?: string | null
+  onBlocked?: (userId: string) => void
+}) {
+  const { t } = useI18n()
+  const { toast, confirm } = useUI()
+  const [open, setOpen] = useState(false)
+  const [reporting, setReporting] = useState(false)
+  const closeMenu = useCallback(() => setOpen(false), [])
+  // Pas de menu sur mes propres semaines
+  if (!me || week.user_id === me) return null
+  const name = profileName(author, t('common.user'))
+
+  const block = async () => {
+    setOpen(false)
+    const ok = await confirm({ title: t('mod.blockTitle', { name }), message: t('mod.blockText'), confirmLabel: t('mod.block'), danger: true })
+    if (!ok) return
+    if (!(await blockUser(week.user_id))) { toast(t('mod.blockFailed'), 'error'); return }
+    toast(t('mod.blocked', { name }))
+    onBlocked?.(week.user_id)
+  }
+
+  const itemClass = 'w-full min-h-12 px-3 rounded-xl flex items-center gap-3 text-sm text-start hover:bg-surface-2 transition active:scale-[0.99]'
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} aria-label={t('common.more')} className={btn.icon}>
+        <Icon name="dots" size={20} />
+      </button>
+      <Sheet open={open} onClose={closeMenu} title={t('common.more')}>
+        <div className="p-3 space-y-1">
+          <button type="button" className={itemClass} onClick={() => { setOpen(false); setReporting(true) }}>
+            <Icon name="flag" size={18} />{t('social.reportWeek')}
+          </button>
+          <button type="button" className={`${itemClass} text-danger`} onClick={block}>
+            <Icon name="ban" size={18} />{t('social.blockPerson', { name })}
+          </button>
+        </div>
+      </Sheet>
+      <ReportSheet target={reporting ? { type: 'week', id: week.id, userId: week.user_id } : null} onClose={() => setReporting(false)} />
+    </>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Inviter des amis : partage natif, sinon copie du lien               */
+/* ------------------------------------------------------------------ */
+export function InviteButton({ className = btn.secondary }: { className?: string }) {
+  const { t } = useI18n()
+  const { toast } = useUI()
+  const invite = async () => {
+    const url = window.location.origin
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: APP_NAME, text: t('social.inviteText'), url })
+        return
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') return // la personne a fermé la fenêtre de partage
+        // autre erreur : on essaie de copier le lien
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      toast(t('common.copied'))
+    } catch {
+      toast(t('common.error'), 'error')
+    }
+  }
+  return (
+    <button type="button" onClick={invite} className={className}>
+      <Icon name="share" size={18} />{t('social.invite')}
+    </button>
   )
 }
 
@@ -389,7 +716,11 @@ function MediaGrid({ urls, onOpen }: { urls: string[], onOpen?: () => void }) {
 /* ------------------------------------------------------------------ */
 /* Carte de semaine (fil)                                              */
 /* ------------------------------------------------------------------ */
-export function WeekCard({ week, author, me, onOpen }: { week: WeekRow, author?: PublicProfile | null, me?: string | null, onOpen?: () => void }) {
+export function WeekCard({ week, author, me, onOpen, onBlocked }: {
+  week: WeekRow, author?: PublicProfile | null, me?: string | null, onOpen?: () => void,
+  // Appelé après le blocage de l'auteur : le fil retire alors ses semaines de la liste
+  onBlocked?: (userId: string) => void
+}) {
   const { t, fmtShortDate } = useI18n()
   const dates = getWeekDates(week.year, week.week_number)
   const range = `${fmtShortDate(dates[0].toISOString())} – ${fmtShortDate(dates[6].toISOString())}`
@@ -410,10 +741,12 @@ export function WeekCard({ week, author, me, onOpen }: { week: WeekRow, author?:
             <span className="text-muted">{t('social.weekYear', { n: week.week_number, year: week.year })}</span> · {range}
           </p>
         </div>
-        {week.user_id === me && (
+        {week.user_id === me ? (
           <Link href={`/calendar?y=${week.year}&w=${week.week_number}`} aria-label={t('social.openInCalendar')} title={t('social.openInCalendar')} className={btn.icon}>
             <Icon name="calendar" size={18} />
           </Link>
+        ) : (
+          <WeekMenu week={week} author={author} me={me} onBlocked={onBlocked} />
         )}
       </header>
 
@@ -456,7 +789,10 @@ export function WeekCard({ week, author, me, onOpen }: { week: WeekRow, author?:
 /* ------------------------------------------------------------------ */
 /* Fiche complète d'une semaine, en lecture seule                      */
 /* ------------------------------------------------------------------ */
-export function WeekSheet({ week, author, me, onClose }: { week: WeekRow | null, author?: PublicProfile | null, me?: string | null, onClose: () => void }) {
+export function WeekSheet({ week, author, me, onClose, onBlocked }: {
+  week: WeekRow | null, author?: PublicProfile | null, me?: string | null, onClose: () => void,
+  onBlocked?: (userId: string) => void
+}) {
   const { t, fmtStamp } = useI18n()
   if (!week) return null
   const dates = getWeekDates(week.year, week.week_number)
@@ -466,7 +802,8 @@ export function WeekSheet({ week, author, me, onClose }: { week: WeekRow | null,
   const empty = events.length === 0 && extraMedia.length === 0 && !week.content
 
   return (
-    <Sheet open onClose={onClose} wide title={t('social.weekYear', { n: week.week_number, year: week.year })}>
+    <Sheet open onClose={onClose} wide title={t('social.weekYear', { n: week.week_number, year: week.year })}
+      headerExtra={<WeekMenu week={week} author={author} me={me} onBlocked={id => { onBlocked?.(id); onClose() }} />}>
       <div className="px-5 py-4 space-y-5">
         <Link href={profileHref(week.user_id, me)} onClick={onClose} className="flex items-center gap-3 w-fit">
           <Avatar url={author?.avatar_url} name={name} size={36} />

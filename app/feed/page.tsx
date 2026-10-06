@@ -10,7 +10,7 @@ import { usePullToRefresh } from '@/lib/usePullToRefresh'
 import Icon from '../components/Icon'
 import { Avatar, EmptyState, Skeleton, Spinner, btn, card, useUI } from '../components/ui'
 import {
-  PROFILE_COLUMNS, WEEK_COLUMNS, WeekCard, WeekSheet, followUser, profileHref, profileName,
+  InviteButton, PROFILE_COLUMNS, WEEK_COLUMNS, WeekCard, WeekSheet, followUser, profileHref, profileName,
   type FollowState, type PublicProfile, type WeekRow,
 } from '../components/social'
 
@@ -33,6 +33,8 @@ export default function FeedPage() {
   const sentinel = useRef<HTMLDivElement>(null)
   // Numéro de la demande en cours : ignore les réponses d'un ancien onglet
   const requestId = useRef(0)
+  // Nombre de semaines déjà lues côté serveur (avant filtrage) : sert de point de départ à « Voir plus »
+  const rawCount = useRef(0)
 
   // 1) Qui suis-je, et qui je suis (abonnements acceptés)
   useEffect(() => {
@@ -65,26 +67,35 @@ export default function FeedPage() {
       setLoading(false); setLoadingMore(false)
       return
     }
-    const rows = (data || []) as WeekRow[]
+    const fetched = (data || []) as WeekRow[]
+    let rows = fetched
 
     // Profils des auteurs en une seule requête
     const missing = Array.from(new Set(rows.map(r => r.user_id)))
     if (missing.length) {
       const { data: profs } = await supabase.from('profiles').select(PROFILE_COLUMNS).in('id', missing)
-      if (profs) setAuthors(prev => ({ ...prev, ...Object.fromEntries(profs.map(p => [p.id, p])) }))
+      if (profs) {
+        setAuthors(prev => ({ ...prev, ...Object.fromEntries(profs.map(p => [p.id, p])) }))
+        // On ignore les auteurs sans nom ni pseudo, ou devenus invisibles (compte supprimé, blocage)
+        if (tab === 'following') {
+          const valid = new Set(profs.filter(p => p.full_name?.trim() || p.username?.trim()).map(p => p.id))
+          rows = rows.filter(r => valid.has(r.user_id))
+        }
+      }
     }
     if (id !== requestId.current) return
+    rawCount.current = offset === 0 ? fetched.length : rawCount.current + fetched.length
     setError(false)
     setWeeks(prev => (offset === 0 ? rows : [...prev, ...rows]))
-    setHasMore(rows.length === PAGE_SIZE)
+    setHasMore(fetched.length === PAGE_SIZE)
     setLoading(false); setLoadingMore(false)
   }, [me, followingIds, tab, toast, t])
 
   const loadMore = useCallback(() => {
     if (loadingMore) return
     setLoadingMore(true)
-    loadPage(weeks.length)
-  }, [loadingMore, loadPage, weeks.length])
+    loadPage(rawCount.current)
+  }, [loadingMore, loadPage])
 
   const retry = () => { setLoading(true); setError(false); loadPage(0) }
 
@@ -109,6 +120,12 @@ export default function FeedPage() {
   }
 
   const closeSheet = useCallback(() => setOpened(null), [])
+
+  // Après un blocage : on retire tout de suite les semaines de cette personne du fil
+  const onBlocked = useCallback((userId: string) => {
+    setWeeks(prev => prev.filter(w => w.user_id !== userId))
+    setFollowingIds(prev => (prev ? prev.filter(x => x !== userId) : prev))
+  }, [])
 
   // Tirer vers le bas = recharger le fil
   const { pull, refreshing } = usePullToRefresh(() => loadPage(0))
@@ -152,12 +169,17 @@ export default function FeedPage() {
           ) : (
             <EmptyState icon="users" title={t('feed.emptyTitle')}
               text={followingIds && followingIds.length > 0 ? t('feed.emptyNoPosts') : t('feed.emptyText')}
-              action={<Link href="/users" className={btn.primary}><Icon name="userPlus" size={18} />{t('feed.findPeople')}</Link>} />
+              action={(
+                <div className="flex flex-col items-stretch gap-2">
+                  <Link href="/users" className={btn.primary}><Icon name="userPlus" size={18} />{t('feed.findPeople')}</Link>
+                  <InviteButton />
+                </div>
+              )} />
           )
         ) : (
           <div className="space-y-5">
             {weeks.map(w => (
-              <WeekCard key={w.id} week={w} author={authors[w.user_id]} me={me} onOpen={() => setOpened(w)} />
+              <WeekCard key={w.id} week={w} author={authors[w.user_id]} me={me} onOpen={() => setOpened(w)} onBlocked={onBlocked} />
             ))}
             <div ref={sentinel} />
             {hasMore ? (
@@ -183,7 +205,7 @@ export default function FeedPage() {
         <div className="sticky top-6">{me && <Suggestions me={me} />}</div>
       </aside>
 
-      <WeekSheet week={opened} author={opened ? authors[opened.user_id] : null} me={me} onClose={closeSheet} />
+      <WeekSheet week={opened} author={opened ? authors[opened.user_id] : null} me={me} onClose={closeSheet} onBlocked={onBlocked} />
     </div>
   )
 }

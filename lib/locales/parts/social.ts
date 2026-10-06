@@ -47,6 +47,18 @@ const part = {
   'social.allDay': 'Journée',
   'social.media': 'Photos et vidéos',
   'social.emptyWeek': 'Cette semaine ne contient encore rien.',
+  'social.reply': 'Répondre',
+  'social.replyingTo': 'Réponse à {name}',
+  'social.writeReply': 'Écrire une réponse...',
+  'social.edit': 'Modifier',
+  'social.edited': 'modifié',
+  'social.saveEdit': 'Enregistrer',
+  'social.notifReply': '{name} a répondu à ton commentaire',
+  'social.reportWeek': 'Signaler cette semaine',
+  'social.blockPerson': 'Bloquer {name}',
+  'social.invite': 'Inviter des amis',
+  'social.inviteText': 'Rejoins-moi sur Life in Weeks pour partager nos semaines.',
+  'social.copyProfileLink': 'Copier le lien du profil',
 
   // Profil public
   'pub.back': 'Retour',

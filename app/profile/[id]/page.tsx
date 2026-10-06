@@ -8,8 +8,10 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useI18n } from '@/lib/i18n'
 import { isVideoUrl } from '@/lib/media'
+import { blockUser, isBlockedByMe, unblockUser } from '@/lib/moderation'
 import Icon from '../../components/Icon'
-import { Avatar, EmptyState, Skeleton, Spinner, btn, page, useUI } from '../../components/ui'
+import { Avatar, EmptyState, Sheet, Skeleton, Spinner, btn, page, useUI } from '../../components/ui'
+import ReportSheet from '../../components/ReportSheet'
 import {
   PROFILE_COLUMNS, WEEK_COLUMNS, WeekSheet, followUser, profileName, unfollowUser, weekEvents, weekPhotos,
   type FollowState, type PublicProfile, type WeekRow,
@@ -35,6 +37,9 @@ export default function PublicProfilePage() {
   const [weeksLoading, setWeeksLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [opened, setOpened] = useState<WeekRow | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [reporting, setReporting] = useState(false)
+  const [blockedByMe, setBlockedByMe] = useState(false)
 
   const locked = !!profile?.is_private && follow !== 'accepted'
 
@@ -42,23 +47,30 @@ export default function PublicProfilePage() {
   useEffect(() => {
     if (!id) return
     (async () => {
-      const { data: auth } = await supabase.auth.getUser()
-      if (!auth.user) { window.location.href = '/login'; return }
-      if (auth.user.id === id) { router.replace('/profile'); return }
-      setMe(auth.user.id)
+      try {
+        const { data: auth } = await supabase.auth.getUser()
+        if (!auth.user) { window.location.href = '/login'; return }
+        if (auth.user.id === id) { router.replace('/profile'); return }
+        setMe(auth.user.id)
 
-      const [{ data: p }, { data: rel }, followers, following, shared] = await Promise.all([
-        supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', id).maybeSingle(),
-        supabase.from('follows').select('status').eq('follower_id', auth.user.id).eq('following_id', id).maybeSingle(),
-        supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', id).eq('status', 'accepted'),
-        supabase.from('follows').select('following_id', { count: 'exact', head: true }).eq('follower_id', id).eq('status', 'accepted'),
-        supabase.from('weeks').select('id', { count: 'exact', head: true }).eq('user_id', id).eq('visibility', 'public'),
-      ])
-      if (!p) { setNotFound(true); setLoading(false); return }
-      setProfile(p)
-      setFollow(rel?.status === 'accepted' ? 'accepted' : rel?.status === 'pending' ? 'pending' : 'none')
-      setStats({ weeks: shared.count || 0, followers: followers.count || 0, following: following.count || 0 })
-      setLoading(false)
+        const [{ data: p }, { data: rel }, followers, following, shared, blocked] = await Promise.all([
+          supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', id).maybeSingle(),
+          supabase.from('follows').select('status').eq('follower_id', auth.user.id).eq('following_id', id).maybeSingle(),
+          supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', id).eq('status', 'accepted'),
+          supabase.from('follows').select('following_id', { count: 'exact', head: true }).eq('follower_id', id).eq('status', 'accepted'),
+          supabase.from('weeks').select('id', { count: 'exact', head: true }).eq('user_id', id).eq('visibility', 'public'),
+          isBlockedByMe(id),
+        ])
+        // Profil supprimé, ou personne qui m'a bloqué (invisible pour moi) : état « introuvable », pas une erreur
+        if (!p) { setNotFound(true); setLoading(false); return }
+        setProfile(p)
+        setBlockedByMe(blocked)
+        setFollow(rel?.status === 'accepted' ? 'accepted' : rel?.status === 'pending' ? 'pending' : 'none')
+        setStats({ weeks: shared.count || 0, followers: followers.count || 0, following: following.count || 0 })
+        setLoading(false)
+      } catch {
+        setNotFound(true); setLoading(false)
+      }
     })()
   }, [id, router])
 
@@ -112,6 +124,32 @@ export default function PublicProfilePage() {
     else router.push('/feed')
   }
   const closeSheet = useCallback(() => setOpened(null), [])
+  const closeMenu = useCallback(() => setMenuOpen(false), [])
+
+  const copyLink = async () => {
+    setMenuOpen(false)
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/profile/${id}`)
+      toast(t('common.copied'))
+    } catch { toast(t('common.error'), 'error') }
+  }
+
+  const toggleBlock = async () => {
+    if (!profile) return
+    setMenuOpen(false)
+    if (blockedByMe) {
+      if (!(await unblockUser(profile.id))) { toast(t('common.error'), 'error'); return }
+      setBlockedByMe(false)
+      toast(t('mod.unblocked'))
+      return
+    }
+    const blockName = profileName(profile, t('common.user'))
+    const ok = await confirm({ title: t('mod.blockTitle', { name: blockName }), message: t('mod.blockText'), confirmLabel: t('mod.block'), danger: true })
+    if (!ok) return
+    if (!(await blockUser(profile.id))) { toast(t('mod.blockFailed'), 'error'); return }
+    toast(t('mod.blocked', { name: blockName }))
+    router.replace('/feed')
+  }
 
   const backButton = (
     <button onClick={goBack} aria-label={t('pub.back')} className={`${btn.icon} -ms-2 active:scale-95`}>
@@ -157,7 +195,10 @@ export default function PublicProfilePage() {
     <div className={`${page} md:max-w-4xl`}>
       <div className="flex items-center gap-2 mb-2">
         {backButton}
-        <p className="font-semibold truncate">{showUsername ? `@${profile.username}` : name}</p>
+        <p className="font-semibold truncate flex-1">{showUsername ? `@${profile.username}` : name}</p>
+        <button onClick={() => setMenuOpen(true)} aria-label={t('common.more')} className={`${btn.icon} -me-2 active:scale-95`}>
+          <Icon name="dots" size={22} />
+        </button>
       </div>
 
       {/* En-tête du profil */}
@@ -221,7 +262,23 @@ export default function PublicProfilePage() {
         </>
       )}
 
-      <WeekSheet week={opened} author={profile} me={me} onClose={closeSheet} />
+      <WeekSheet week={opened} author={profile} me={me} onClose={closeSheet} onBlocked={() => router.replace('/feed')} />
+
+      <Sheet open={menuOpen} onClose={closeMenu} title={t('common.more')}>
+        <div className="p-3 space-y-1">
+          {([
+            { key: 'copy', icon: 'link', label: t('social.copyProfileLink'), onClick: copyLink, danger: false },
+            { key: 'block', icon: 'ban', label: blockedByMe ? t('mod.unblock') : t('mod.block'), onClick: toggleBlock, danger: !blockedByMe },
+            { key: 'report', icon: 'flag', label: t('mod.report'), onClick: () => { setMenuOpen(false); setReporting(true) }, danger: false },
+          ] as const).map(it => (
+            <button key={it.key} onClick={it.onClick}
+              className={`w-full min-h-12 px-3 rounded-xl flex items-center gap-3 text-sm text-start hover:bg-surface-2 transition active:scale-[0.99] ${it.danger ? 'text-danger' : ''}`}>
+              <Icon name={it.icon} size={18} />{it.label}
+            </button>
+          ))}
+        </div>
+      </Sheet>
+      <ReportSheet target={reporting ? { type: 'profile', id: profile.id, userId: profile.id } : null} onClose={() => setReporting(false)} />
     </div>
   )
 }

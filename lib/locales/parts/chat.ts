@@ -18,6 +18,31 @@ const part = {
   'msg.firstTitle': 'Dis bonjour à {name}',
   'msg.firstText': 'Envoie ton premier message pour lancer la conversation.',
   'msg.unread': 'Non lu',
+  // Photos
+  'msg.photo': 'Photo',
+  'msg.addPhoto': 'Ajouter une photo',
+  'msg.removePhoto': 'Retirer la photo',
+  'msg.photoError': 'La photo n’a pas pu être envoyée.',
+  // Envoi refusé
+  'msg.cannotSend': 'Message non envoyé : cette personne n’accepte pas tes messages.',
+  // Statut d’envoi
+  'msg.read': 'Lu',
+  'msg.sent': 'Envoyé',
+  // Brouillon
+  'msg.draftPrefix': 'Brouillon : {text}',
+  // Actions sur un message
+  'msg.deleted': 'Message supprimé',
+  'msg.deleteError': 'Impossible de supprimer le message.',
+  'msg.copyText': 'Copier le texte',
+  'msg.textCopied': 'Texte copié',
+  // Menu de la conversation
+  'msg.viewProfile': 'Voir le profil',
+  'msg.mute': 'Mettre en sourdine',
+  'msg.unmute': 'Réactiver les notifications',
+  'msg.mutedOn': 'Conversation en sourdine',
+  'msg.mutedOff': 'Notifications réactivées',
+  'msg.muteError': 'Action impossible pour le moment.',
+  'msg.mutedLabel': 'En sourdine',
 
   // Carte
   'map.place1': '1 lieu',

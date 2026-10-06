@@ -8,9 +8,8 @@ import { useI18n } from '@/lib/i18n'
 import Icon from '../components/Icon'
 import Logo from '../components/Logo'
 import { btn } from '../components/ui'
+import { CONTACT_EMAIL } from '@/lib/appInfo'
 
-// À REMPLACER par une vraie adresse de contact
-const CONTACT_EMAIL = 'contact@exemple.com'
 // Date de la dernière mise à jour du texte
 const UPDATED_AT = new Date(2026, 9, 5)
 
@@ -39,12 +38,12 @@ const FR: { title: string, intro: string, updated: string, sections: Section[] }
       "Les messages ne sont visibles que par toi et ton correspondant.",
     ] },
     { title: 'Durée de conservation', body: [
-      "Tes données sont conservées tant que ton compte existe. Quand tu supprimes ton compte, tes souvenirs, fichiers, messages et abonnements sont effacés définitivement. Les copies de sauvegarde techniques disparaissent ensuite dans un délai limité.",
+      "Tes données sont conservées tant que ton compte existe. Quand tu supprimes ton compte, il est masqué et reste récupérable pendant 30 jours ; passé ce délai, tes souvenirs, fichiers, messages et abonnements sont effacés définitivement. Les copies de sauvegarde techniques disparaissent ensuite dans un délai limité.",
     ] },
     { title: 'Tes droits (RGPD)', body: [
       "Tu peux à tout moment accéder à tes données, les corriger ou les supprimer.",
       "Rectification : depuis ton profil, bouton « Modifier ».",
-      "Suppression : Profil → Modifier → Compte → « Supprimer mon compte ». La suppression est immédiate et définitive.",
+      "Suppression : Profil → Paramètres → « Supprimer mon compte ». Tu peux récupérer ton compte pendant 30 jours en te reconnectant ; ensuite, la suppression est définitive.",
       "Tu peux aussi introduire une réclamation auprès de la CNIL (cnil.fr).",
     ] },
     { title: 'Contact', body: [
@@ -76,12 +75,12 @@ const EN: typeof FR = {
       'Messages are only visible to you and the person you are talking to.',
     ] },
     { title: 'How long we keep it', body: [
-      'Your data is kept as long as your account exists. When you delete your account, your memories, files, messages and follows are permanently erased. Technical backups expire shortly after.',
+      'Your data is kept as long as your account exists. When you delete your account, it is hidden and can be recovered for 30 days; after that, your memories, files, messages and follows are permanently erased. Technical backups expire shortly after.',
     ] },
     { title: 'Your rights (GDPR)', body: [
       'You can access, correct or delete your data at any time.',
       'Correction: from your profile, “Edit” button.',
-      'Deletion: Profile → Edit → Account → “Delete my account”. Deletion is immediate and permanent.',
+      'Deletion: Profile → Settings → “Delete my account”. You can recover your account for 30 days by signing back in; after that, deletion is permanent.',
       'You may also lodge a complaint with your data protection authority.',
     ] },
     { title: 'Contact', body: [

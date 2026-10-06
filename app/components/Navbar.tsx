@@ -1,7 +1,7 @@
 'use client'
 // Navigation principale : barre en bas sur téléphone, colonne à gauche sur ordinateur.
 import { useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useI18n } from '@/lib/i18n'
@@ -9,13 +9,14 @@ import Icon, { type IconName } from './Icon'
 import Logo from './Logo'
 import { Avatar } from './ui'
 
-const HIDDEN_ON = ['/login']
+const HIDDEN_ON = ['/login', '/recover', '/reset-password']
 
 // Petite vibration au toucher (téléphones qui la permettent)
 const buzz = () => { try { navigator.vibrate?.(8) } catch { /* ignoré */ } }
 
 export default function Navbar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { t } = useI18n()
   const [signedIn, setSignedIn] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
@@ -32,7 +33,9 @@ export default function Navbar() {
       setSignedIn(true)
 
       const { data: profile } = await supabase
-        .from('profiles').select('avatar_url, full_name, username, birth_date').eq('id', uid).single()
+        .from('profiles').select('avatar_url, full_name, username, birth_date, deleted_at').eq('id', uid).single()
+      // Compte en cours de suppression : on renvoie vers l'écran de récupération
+      if (profile?.deleted_at && window.location.pathname !== '/recover') { router.replace('/recover'); return }
       if (profile?.avatar_url) setAvatarUrl(profile.avatar_url)
       setName(profile?.full_name || profile?.username || '')
       if (profile?.birth_date) {
@@ -56,7 +59,7 @@ export default function Navbar() {
         .subscribe()
     })
     return () => { cancelled = true; if (channel) supabase.removeChannel(channel) }
-  }, [])
+  }, [router])
 
 
   if (!signedIn || HIDDEN_ON.includes(pathname || '')) return null

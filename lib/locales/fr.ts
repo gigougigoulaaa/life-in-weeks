@@ -5,6 +5,11 @@ import calendar from './parts/calendar'
 import social from './parts/social'
 import pages from './parts/pages'
 import chat from './parts/chat'
+import settings from './parts/settings'
+import help from './parts/help'
+import account from './parts/account'
+import stats from './parts/stats'
+import moderation from './parts/moderation'
 
 const fr = {
   'app.tagline': 'Votre vie, semaine par semaine.',
@@ -151,6 +156,11 @@ const fr = {
   ...social,
   ...pages,
   ...chat,
+  ...settings,
+  ...help,
+  ...account,
+  ...stats,
+  ...moderation,
 }
 
 export default fr

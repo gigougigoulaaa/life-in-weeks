@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useI18n } from '@/lib/i18n'
 import Icon from '../components/Icon'
+import { InviteButton } from '../components/social'
 import { Avatar, btn, card, input, page, EmptyState, Skeleton, Spinner, useUI } from '../components/ui'
 
 type Person = { id: string, username?: string | null, full_name?: string | null, avatar_url?: string | null, bio?: string | null, is_private?: boolean | null }
@@ -59,7 +60,8 @@ export default function UsersPage() {
         .neq('id', me.id).limit(20)
       // On ignore une réponse arrivée après une recherche plus récente
       if (id !== requestId.current) return
-      setPeople((data as Person[]) || [])
+      // On ignore les profils sans nom ni pseudo
+      setPeople(((data as Person[]) || []).filter(p => p.full_name?.trim() || p.username?.trim()))
       setLoading(false)
     }, 300)
     return () => clearTimeout(timer)
@@ -96,9 +98,12 @@ export default function UsersPage() {
 
   return (
     <main className={page}>
-      <header className="mb-5">
-        <h1 className="text-2xl font-semibold tracking-tight">{t('users.title')}</h1>
-        <p className="text-sm text-muted mt-1">{t('users.subtitle')}</p>
+      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">{t('users.title')}</h1>
+          <p className="text-sm text-muted mt-1">{t('users.subtitle')}</p>
+        </div>
+        <InviteButton />
       </header>
 
       <div className="relative mb-6">

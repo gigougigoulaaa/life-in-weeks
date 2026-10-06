@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useI18n, type Key } from '@/lib/i18n'
 import { uploadMedia, isVideoUrl, MAX_VIDEO_MB, type UploadError } from '@/lib/media'
@@ -1035,6 +1036,13 @@ export default function CalendarPage() {
               <Icon name="logOut" size={18} />{t('cal.logout')}
             </button>
           </section>
+
+          {/* Lien vers la page Paramètres complète */}
+          <Link href="/settings" className="flex items-center gap-3 min-h-12 px-4 rounded-2xl border border-line bg-surface-2 text-sm font-medium hover:bg-surface-3 active:scale-[0.99] transition">
+            <Icon name="settings" size={18} className="text-muted" />
+            <span className="flex-1">{t('settings.all')}</span>
+            <Icon name="chevronRight" size={18} className="text-subtle" />
+          </Link>
         </div>
       </Sheet>
 

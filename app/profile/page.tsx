@@ -1,6 +1,6 @@
 'use client'
 // Mon profil : identité, « ma vie en semaines », statistiques, moments favoris et grille de photos.
-// Le bouton crayon ouvre le mode édition (photo, nom, bio, favoris, langue, compte).
+// Le bouton crayon ouvre le mode édition (photo, nom, bio, favoris). Le compte et la langue sont dans /settings.
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
@@ -8,7 +8,6 @@ import { useI18n } from '@/lib/i18n'
 import { uploadMedia, isVideoUrl, MAX_IMAGE_MB } from '@/lib/media'
 import { weekKey, weeksLivedSince } from '@/lib/shareImage'
 import Icon, { type IconName } from '../components/Icon'
-import LanguageSelector from '../components/LanguageSelector'
 import { Avatar, btn, card, input, EmptyState, Sheet, Skeleton, Spinner, useUI } from '../components/ui'
 
 type Event = { text?: string, description?: string, photos?: string[] }
@@ -36,7 +35,7 @@ const weekHref = (w: Week) => `/calendar?y=${w.year}&w=${w.week_number}`
 
 export default function ProfilePage() {
   const { t, fmtNumber } = useI18n()
-  const { toast, confirm } = useUI()
+  const { toast } = useUI()
 
   const [user, setUser] = useState<{ id: string, email?: string } | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -55,7 +54,6 @@ export default function ProfilePage() {
 
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   const fillForm = (p: Profile | null) => {
     setUsername(p?.username || '')
@@ -174,35 +172,6 @@ export default function ProfilePage() {
   const toggleFavorite = (id: string) =>
     setFavoriteWeeks(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
-  const logout = async () => {
-    await supabase.auth.signOut()
-    window.location.assign('/login')
-  }
-
-  const deleteAccount = async () => {
-    const ok = await confirm({
-      title: t('account.deleteTitle'), message: t('account.deleteMessage'),
-      confirmLabel: t('account.deleteConfirm'), danger: true,
-    })
-    if (!ok) return
-    setDeleting(true)
-    try {
-      const { data } = await supabase.auth.getSession()
-      const res = await fetch('/api/delete-account', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${data.session?.access_token || ''}` },
-      })
-      if (res.status === 501) { toast(t('account.notConfigured'), 'error'); setDeleting(false); return }
-      if (!res.ok) throw new Error(String(res.status))
-      toast(t('account.deleted'))
-      await supabase.auth.signOut()
-      window.location.assign('/login')
-    } catch {
-      toast(t('common.error'), 'error')
-      setDeleting(false)
-    }
-  }
-
   const openEdit = () => { fillForm(profile); setEditing(true); window.scrollTo({ top: 0 }) }
 
   /* ---------------- Mode édition ---------------- */
@@ -277,37 +246,6 @@ export default function ProfilePage() {
           </button>
         </section>
 
-        {/* Préférences */}
-        <h2 className="text-sm font-semibold mt-10 mb-3">{t('profile.preferences')}</h2>
-        <div className={`${card} flex items-center justify-between gap-3 ps-4 pe-2 h-14`}>
-          <span className="flex items-center gap-3 text-sm"><Icon name="globe" size={18} className="text-muted" />{t('common.language')}</span>
-          <LanguageSelector showName />
-        </div>
-
-        {/* Compte */}
-        <h2 className="text-sm font-semibold mt-8 mb-3">{t('profile.account')}</h2>
-        <div className={`${card} divide-y divide-line overflow-hidden`}>
-          {user?.email && (
-            <div className="flex items-center gap-3 px-4 h-14 text-sm">
-              <Icon name="user" size={18} className="text-muted" />
-              <span className="text-muted truncate">{user.email}</span>
-            </div>
-          )}
-          <Link href="/privacy" className="flex items-center gap-3 px-4 h-14 text-sm hover:bg-surface-2 transition">
-            <Icon name="shield" size={18} className="text-muted" />
-            <span className="flex-1">{t('nav.privacy')}</span>
-            <Icon name="chevronRight" size={18} className="text-subtle" />
-          </Link>
-          <button onClick={logout} className="w-full flex items-center gap-3 px-4 h-14 text-sm text-start hover:bg-surface-2 transition">
-            <Icon name="logOut" size={18} className="text-muted" />
-            <span className="flex-1">{t('profile.logout')}</span>
-          </button>
-        </div>
-        <button onClick={deleteAccount} disabled={deleting} className={`${btn.danger} w-full mt-4 disabled:opacity-50`}>
-          {deleting ? <Spinner size={16} /> : <Icon name="trash" size={16} />}
-          {deleting ? t('account.deleting') : t('account.delete')}
-        </button>
-
         {/* Choix des moments favoris */}
         <Sheet open={pickerOpen} onClose={() => setPickerOpen(false)} title={t('profile.favPick')}
           headerExtra={<button onClick={() => setPickerOpen(false)} className={`${btn.ghost} text-brand`}>{t('common.done')}</button>}>
@@ -368,12 +306,18 @@ export default function ProfilePage() {
         <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
           <section>
             <div className="flex items-start gap-4">
-              <Avatar url={profile?.avatar_url} name={shownName} size={80} />
+              <Avatar url={profile?.avatar_url} name={shownName} size={72} />
               <div className="flex-1 min-w-0 pt-2">
-                <h1 className="text-2xl font-semibold tracking-tight break-words line-clamp-2">{shownName}</h1>
+                <h1 className="text-xl font-semibold tracking-tight line-clamp-2 [overflow-wrap:anywhere]">{shownName}</h1>
                 {showHandle && <p className="text-muted text-sm truncate">@{profile?.username}</p>}
               </div>
-              <div className="flex items-center gap-1 -me-2">
+              <div className="flex items-center -me-2 shrink-0">
+                <Link href="/stats" aria-label={t('settings.stats')} title={t('settings.stats')} className={btn.icon}>
+                  <Icon name="chart" size={20} />
+                </Link>
+                <Link href="/settings" aria-label={t('settings.title')} title={t('settings.title')} className={btn.icon}>
+                  <Icon name="settings" size={20} />
+                </Link>
                 <button onClick={shareProfile} aria-label={t('profile.shareLink')} title={t('profile.shareLink')} className={btn.icon}>
                   <Icon name="share" size={20} />
                 </button>
