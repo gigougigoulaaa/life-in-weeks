@@ -10,7 +10,7 @@ import Logo from '../components/Logo'
 import { btn } from '../components/ui'
 
 // À REMPLACER par une vraie adresse de contact
-const CONTACT_EMAIL = 'contact@exemple.com'
+const CONTACT_EMAIL = 'norair.hovnanian@gmail.com'
 // Date de la dernière mise à jour du texte
 const UPDATED_AT = new Date(2026, 9, 5)
 
