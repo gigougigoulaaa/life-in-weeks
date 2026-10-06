@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useI18n, type Key } from '@/lib/i18n'
 import { uploadMedia, isVideoUrl, MAX_VIDEO_MB, type UploadError } from '@/lib/media'
 import LanguageSelector from '../components/LanguageSelector'
+import PlacePicker, { type Place } from './PlacePicker'
 import Icon, { type IconName } from '../components/Icon'
 import Logo from '../components/Logo'
 import { Sheet, Avatar, EmptyState, Skeleton, Spinner, useUI, btn, input, card } from '../components/ui'
@@ -173,6 +174,8 @@ export default function CalendarPage() {
   const [uploadingBg, setUploadingBg] = useState(false)
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null)
   const [weekVisibility, setWeekVisibility] = useState<'private' | 'public'>('private')
+  const [weekPlace, setWeekPlace] = useState<Place | null>(null)
+  const [showPlace, setShowPlace] = useState(false)
   const [memories, setMemories] = useState<any[]>([])
   const [showMemories, setShowMemories] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -367,6 +370,7 @@ export default function CalendarPage() {
     setDays(EMPTY_DAYS())
     setSelectedWeekId(null)
     setWeekVisibility('private')
+    setWeekPlace(null)
     const uid = userId || user?.id
     if (!uid) return
     const { data, error } = await supabase
@@ -377,6 +381,8 @@ export default function CalendarPage() {
     setSelectedWeekId(existing.id)
     setDays(parseDays(existing.days))
     setWeekVisibility(existing.visibility === 'public' ? 'public' : 'private')
+    const loc = existing.location
+    setWeekPlace(loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lng) ? { lat: loc.lat, lng: loc.lng, name: loc.name || '' } : null)
   }
 
   // Au chargement : utilisateur, profil (date de naissance, thème), semaines, souvenirs, notifications
@@ -423,6 +429,17 @@ export default function CalendarPage() {
     toast(t(next === 'public' ? 'week.nowPublic' : 'week.nowPrivate'))
   }
 
+  // Lieu de la semaine : enregistré tout de suite si la semaine existe, sinon à la création (premier évènement)
+  const changePlace = async (place: Place | null) => {
+    const previous = weekPlace
+    setWeekPlace(place)
+    if (!selectedWeekId) return
+    const { error } = await supabase.from('weeks').update({ location: place }).eq('id', selectedWeekId)
+    if (error) { setWeekPlace(previous); toast(t('common.error'), 'error'); return }
+    setSavedWeeks(prev => prev.map(w => (w.id === selectedWeekId ? { ...w, location: place } : w)))
+    toast(t(place ? 'place.saved' : 'place.removed'))
+  }
+
   // Envoie les fichiers un par un : un fichier refusé n'empêche pas les autres de partir
   const uploadEventPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : []
@@ -455,7 +472,7 @@ export default function CalendarPage() {
     } else {
       const { data, error } = await supabase.from('weeks').insert({
         user_id: user.id, year: selectedWeek.year, week_number: selectedWeek.week,
-        title: '', content: '', visibility: weekVisibility, days: updatedDays
+        title: '', content: '', visibility: weekVisibility, days: updatedDays, location: weekPlace
       }).select().single()
       if (data) setSelectedWeekId(data.id)
       failed = !!error
@@ -1117,6 +1134,19 @@ export default function CalendarPage() {
               </span>
             </button>
 
+            {/* Lieu de la semaine (affiché sur la carte) */}
+            <button onClick={() => setShowPlace(true)}
+              className="w-full flex items-center gap-3 text-start rounded-2xl border border-line bg-surface-2/60 px-4 py-3 mb-5 hover:bg-surface-2 transition">
+              <span className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${weekPlace ? 'bg-brand-soft text-brand' : 'bg-surface-3 text-muted'}`}>
+                <Icon name="mapPin" size={18} />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-medium">{t('place.row')}</span>
+                <span className="block text-muted text-xs mt-0.5 truncate">{weekPlace ? weekPlace.name : t('place.rowEmpty')}</span>
+              </span>
+              <Icon name="chevronRight" size={18} className="text-subtle" />
+            </button>
+
             {allEvents.length === 0 ? (
               <div className="text-center py-8 mb-2">
                 <div className="w-12 h-12 rounded-2xl bg-brand-soft text-brand flex items-center justify-center mx-auto mb-3"><Icon name="calendar" size={22} /></div>
@@ -1337,6 +1367,7 @@ export default function CalendarPage() {
           </div>
         )}
       </Sheet>
+      <PlacePicker open={showPlace && !!selectedWeek} onClose={() => setShowPlace(false)} value={weekPlace} onChange={changePlace} />
     </div>
   )
 }
