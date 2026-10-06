@@ -1,6 +1,5 @@
 'use client'
-// Un évènement façon grosse appli : en-tête (pastille de date, titre, date · lieu), carrousel de photos/vidéos à balayer
-// (compteur « 1/3 » et points), puis légende. Utilisé dans le calendrier et sur la fiche d'une semaine.
+// Un évènement : ruban date, titre, lieu, texte dans une carte, puis photos/vidéos (cadre à balayer + petite pellicule de vignettes). Utilisé dans le calendrier et sur la fiche d'une semaine.
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { isVideoUrl } from '@/lib/media'
@@ -87,78 +86,75 @@ export default function EventCard({ ev, date, onDelete }: { ev: EventCardData, d
   const place = ev.place?.name || ''
   const desc = ev.description || ''
   const long = desc.length > 140 || desc.split('\n').length > 3
-  // Pastille : jour du mois et mois, tirés de la date déjà formatée (« lun. 12 oct. · 10:30 »)
-  const m = date.match(/(\d{1,2})\s+([^\s.·,\d]+)/)
-  const dayNum = m?.[1] || ''
-  const month = (m?.[2] || '').slice(0, 4)
-
   const onScroll = () => {
     const el = scroller.current
     if (el) setIdx(Math.round(el.scrollLeft / el.clientWidth))
   }
 
+  const goTo = (i: number) => {
+    const el = scroller.current
+    if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' })
+  }
+
   return (
     <article>
-      {/* En-tête */}
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-11 h-11 shrink-0 rounded-2xl bg-brand-soft text-brand flex flex-col items-center justify-center leading-none">
-          {dayNum ? (
-            <>
-              <span className="text-base font-bold">{dayNum}</span>
-              <span className="text-[10px] font-semibold uppercase mt-0.5">{month}</span>
-            </>
-          ) : <Icon name="calendar" size={18} />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold text-[15px] leading-tight truncate">{title}</p>
-          <p className="text-xs text-subtle mt-1 truncate">
-            {date}
-            {place && <><span> · </span><Icon name="mapPin" size={11} className="inline -mt-0.5 text-brand" /> {place}</>}
-          </p>
-        </div>
+      {/* Ruban : date et heure, en petites capitales */}
+      <div className="flex items-center justify-between gap-3 mb-1.5">
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand truncate">{date}</p>
         {onDelete && (
-          <button onClick={onDelete} aria-label={t('common.delete')} className={`${btn.icon} shrink-0 -me-2`}><Icon name="trash" size={17} /></button>
+          <button onClick={onDelete} aria-label={t('common.delete')} className={`${btn.icon} shrink-0 -me-2 -my-2`}><Icon name="trash" size={17} /></button>
         )}
       </div>
+      <h3 className="text-[22px] font-bold leading-tight tracking-tight">{title}</h3>
+      {place && (
+        <p className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand border-b border-dashed border-brand/50 pb-0.5 max-w-full">
+          <Icon name="mapPin" size={14} /> <span className="truncate">{place}</span>
+        </p>
+      )}
 
-      {/* Carrousel */}
-      {photos.length > 0 && (
-        <div className="relative">
-          <div ref={scroller} onScroll={onScroll}
-            className="flex overflow-x-auto snap-x snap-mandatory rounded-3xl bg-surface-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {photos.map((u, i) => (
-              <div key={u + i} onClick={() => !isVideoUrl(u) && setOpen(i)}
-                className={`snap-center shrink-0 w-full h-[22rem] sm:h-[28rem] relative bg-black ${isVideoUrl(u) ? '' : 'cursor-zoom-in'}`}>
-                <Media url={u} controls className="absolute inset-0 w-full h-full object-cover" />
-                {/* Bouton « agrandir » : seul moyen d'ouvrir une vidéo en plein écran sans lancer la lecture */}
-                <button onClick={e => { e.stopPropagation(); setOpen(i) }} aria-label={t('week.openMedia')}
-                  className="absolute top-3 start-3 w-9 h-9 rounded-full bg-black/60 text-white backdrop-blur inline-flex items-center justify-center active:scale-90 transition">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
-                </button>
-              </div>
-            ))}
-          </div>
-          {photos.length > 1 && (
-            <>
-              <span className="absolute top-3 end-3 text-xs font-medium text-white bg-black/60 backdrop-blur rounded-full px-2.5 py-1 pointer-events-none">{idx + 1}/{photos.length}</span>
-              <div className="flex justify-center gap-1.5 mt-2.5">
-                {photos.map((_, i) => (
-                  <span key={i} className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-4 bg-brand' : 'w-1.5 bg-line-strong'}`} />
-                ))}
-              </div>
-            </>
+      {/* Texte d'abord */}
+      {desc && (
+        <div className="mt-3.5 rounded-2xl bg-surface border-s-[3px] border-brand px-4 py-3.5">
+          <p className={`text-[14.5px] text-fg/90 leading-relaxed whitespace-pre-wrap ${long && !more ? 'line-clamp-4' : ''}`}>{desc}</p>
+          {long && (
+            <button onClick={() => setMore(v => !v)} className="text-sm text-subtle hover:text-fg mt-1">
+              {t(more ? 'week.less' : 'week.more')}
+            </button>
           )}
         </div>
       )}
 
-      {/* Légende */}
-      {desc && (
-        <div className="mt-3 px-0.5">
-          <p className={`text-sm text-fg/90 leading-relaxed whitespace-pre-wrap ${long && !more ? 'line-clamp-3' : ''}`}>{desc}</p>
-          {long && (
-            <button onClick={() => setMore(v => !v)} className="text-sm text-subtle hover:text-fg mt-0.5">
-              {t(more ? 'week.less' : 'week.more')}
-            </button>
+      {/* Photos : un cadre arrondi, et une pellicule de petites vignettes discrète */}
+      {photos.length > 0 && (
+        <div className="mt-3.5">
+          <div className="relative">
+            <div ref={scroller} onScroll={onScroll}
+              className="flex overflow-x-auto snap-x snap-mandatory rounded-3xl bg-surface-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {photos.map((u, i) => (
+                <div key={u + i} onClick={() => !isVideoUrl(u) && setOpen(i)}
+                  className={`snap-center shrink-0 w-full aspect-[16/10] relative bg-black ${isVideoUrl(u) ? '' : 'cursor-zoom-in'}`}>
+                  <Media url={u} controls className="absolute inset-0 w-full h-full object-cover" />
+                  {/* Bouton « agrandir » : seul moyen d'ouvrir une vidéo en plein écran sans lancer la lecture */}
+                  <button onClick={e => { e.stopPropagation(); setOpen(i) }} aria-label={t('week.openMedia')}
+                    className="absolute bottom-3 end-3 w-9 h-9 rounded-full bg-black/60 text-white backdrop-blur inline-flex items-center justify-center active:scale-90 transition">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+            {photos.length > 1 && (
+              <span className="absolute top-3 start-3 text-xs font-medium text-white bg-black/60 backdrop-blur rounded-full px-2.5 py-1 pointer-events-none">{idx + 1} / {photos.length}</span>
+            )}
+          </div>
+          {photos.length > 1 && (
+            <div className="flex gap-1.5 mt-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {photos.map((u, i) => (
+                <button key={u + i} onClick={() => goTo(i)} aria-label={`${i + 1} / ${photos.length}`}
+                  className={`relative shrink-0 w-9 h-9 rounded-lg overflow-hidden border-2 transition ${i === idx ? 'border-brand' : 'border-transparent opacity-60'}`}>
+                  <Media url={u} controls={false} className="w-full h-full object-cover pointer-events-none" />
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}
