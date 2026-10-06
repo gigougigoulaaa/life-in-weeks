@@ -43,7 +43,22 @@ async function compressImage(file: File, maxDim = 2048, quality = 0.85): Promise
   }
 }
 
+// Format photo des téléphones récents (iPhone, certains Android) : les navigateurs ne savent pas l'afficher
+const isHeic = (file: File) => /hei[cf]/i.test(file.type) || ['heic', 'heif'].includes(extOf(file))
+
+// Convertit une photo HEIC/HEIF en JPEG. Renvoie null si la conversion échoue.
+async function heicToJpeg(file: File, quality = 0.85): Promise<Blob | null> {
+  try {
+    const { default: heic2any } = await import('heic2any')
+    const out = await heic2any({ blob: file, toType: 'image/jpeg', quality })
+    return Array.isArray(out) ? out[0] : out
+  } catch {
+    return null
+  }
+}
+
 export function checkMedia(file: File): UploadError | null {
+  if (isHeic(file)) return file.size > MAX_IMAGE_MB * 1024 * 1024 ? 'tooBig' : null
   const isVid = file.type.startsWith('video/') || VIDEO_EXT.includes(extOf(file))
   if (isVid) {
     if (!VIDEO_TYPES.includes(file.type) && !VIDEO_EXT.includes(extOf(file))) return 'unsupported'
@@ -66,7 +81,14 @@ export async function uploadMedia(bucket: string, folder: string, file: File, op
   let ext = extOf(file) || 'bin'
   let contentType = file.type || undefined
   if (!isVid) {
-    const small = await compressImage(file, opts.maxDim)
+    let source: Blob | File = file
+    if (isHeic(file)) {
+      const jpeg = await heicToJpeg(file)
+      if (!jpeg) return { error: 'unsupported' }
+      source = new File([jpeg], 'photo.jpg', { type: 'image/jpeg' })
+      body = jpeg; ext = 'jpg'; contentType = 'image/jpeg'
+    }
+    const small = await compressImage(source as File, opts.maxDim)
     if (small) { body = small; ext = 'jpg'; contentType = 'image/jpeg' }
   }
   if (ext === 'm4v') ext = 'mp4'
