@@ -66,6 +66,8 @@ body {
 @media (min-width: 768px) { .pb-nav { padding-bottom: 2.5rem; } }
 
 /* Carte (Leaflet) en version sombre */
+/* Fond de carte clair d'OpenStreetMap rendu sombre (inversion des couleurs) */
+.map-tiles-dark { filter: invert(1) hue-rotate(180deg) brightness(0.8) contrast(0.9) saturate(0.55); }
 .leaflet-container { background: #0a0a0b; font-family: var(--font-sans); }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip {
   background: #141416 !important; color: #fafafa !important;

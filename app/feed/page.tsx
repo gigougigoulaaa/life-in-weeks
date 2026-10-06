@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useI18n } from '@/lib/i18n'
+import { usePullToRefresh } from '@/lib/usePullToRefresh'
 import Icon from '../components/Icon'
 import { Avatar, EmptyState, Skeleton, Spinner, btn, card, useUI } from '../components/ui'
 import {
@@ -109,9 +110,17 @@ export default function FeedPage() {
 
   const closeSheet = useCallback(() => setOpened(null), [])
 
+  // Tirer vers le bas = recharger le fil
+  const { pull, refreshing } = usePullToRefresh(() => loadPage(0))
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 pt-6 pb-nav lg:flex lg:justify-center lg:gap-10">
       <main className="w-full max-w-xl mx-auto lg:mx-0">
+        {(pull > 0 || refreshing) && (
+          <div className="flex justify-center -mt-2 mb-2 transition-[height] overflow-hidden" style={{ height: refreshing ? 32 : Math.min(pull, 40) }}>
+            <Spinner size={20} />
+          </div>
+        )}
         {/* En-tête */}
         <div className="flex items-center justify-between gap-3 mb-4">
           <h1 className="text-2xl font-semibold tracking-tight">{t('feed.title')}</h1>
@@ -212,7 +221,7 @@ function Suggestions({ me }: { me: string }) {
       const { data: f } = await supabase.from('follows').select('following_id').eq('follower_id', me)
       const known = new Set([me, ...(f || []).map(x => x.following_id)])
       const { data } = await supabase.from('profiles').select(PROFILE_COLUMNS).neq('id', me).limit(40)
-      setPeople((data || []).filter(p => !known.has(p.id)).slice(0, 5))
+      setPeople((data || []).filter(p => !known.has(p.id) && (p.full_name?.trim() || p.username?.trim())).slice(0, 5))
     })()
   }, [me])
 

@@ -18,7 +18,7 @@ export const btn = {
 }
 export const input = 'w-full h-11 bg-surface-2 text-fg placeholder:text-subtle px-3.5 rounded-xl outline-none border border-line focus:border-brand/60 text-sm transition'
 export const card = 'bg-surface border border-line rounded-2xl'
-export const page = 'mx-auto w-full max-w-2xl px-4 sm:px-6 pt-6 pb-nav'
+export const page = 'mx-auto w-full max-w-2xl px-4 sm:px-6 pt-6 pb-nav animate-fade-in'
 
 /* ------------------------------------------------------------------ */
 /* Sheet : panneau modal                                               */

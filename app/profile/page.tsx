@@ -103,6 +103,18 @@ export default function ProfilePage() {
   }, [weeks])
 
   const filledWeeks = useMemo(() => new Set(weeks.filter(isFilled).map(w => weekKey(w.year, w.week_number))), [weeks])
+  // Série en cours : semaines consécutives remplies (la semaine actuelle peut encore être vide)
+  const streak = useMemo(() => {
+    const d = new Date(now.getFullYear(), 0, 1)
+    let y = now.getFullYear()
+    let w = Math.ceil(((now.getTime() - d.getTime()) / 86400000 + d.getDay() + 1) / 7)
+    const prev = (yy: number, ww: number): [number, number] =>
+      ww > 1 ? [yy, ww - 1] : [yy - 1, filledWeeks.has(weekKey(yy - 1, 53)) ? 53 : 52]
+    if (!filledWeeks.has(weekKey(y, w))) [y, w] = prev(y, w)
+    let n = 0
+    while (filledWeeks.has(weekKey(y, w)) && n < 5000) { n++; [y, w] = prev(y, w) }
+    return n
+  }, [filledWeeks, now])
   const favorites = weeks.filter(w => (profile?.favorite_weeks || []).includes(w.id))
   const titledWeeks = weeks.filter(w => w.title)
 
@@ -362,6 +374,8 @@ export default function ProfilePage() {
     { icon: 'globe', value: countries, label: t('profile.countries') },
     { icon: 'pencil', value: weeks.filter(isFilled).length, label: t('profile.memoriesWritten') },
     { icon: 'image', value: mediaWeeks.length, label: t('profile.photoWeeks') },
+    { icon: 'sparkles', value: streak, label: t('profile.streak') },
+    { icon: 'heart', value: favorites.length, label: t('profile.favoritesCount') },
   ]
 
   return (
@@ -374,7 +388,7 @@ export default function ProfilePage() {
             <div className="flex items-start gap-4">
               <Avatar url={profile?.avatar_url} name={shownName} size={80} />
               <div className="flex-1 min-w-0 pt-2">
-                <h1 className="text-2xl font-semibold tracking-tight truncate">{shownName}</h1>
+                <h1 className="text-2xl font-semibold tracking-tight break-words line-clamp-2">{shownName}</h1>
                 {showHandle && <p className="text-muted text-sm truncate">@{profile?.username}</p>}
               </div>
               <div className="flex items-center gap-1 -me-2">

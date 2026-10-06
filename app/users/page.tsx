@@ -42,7 +42,7 @@ export default function UsersPage() {
       const recent = await base().order('created_at', { ascending: false })
       // Si la colonne created_at n'existe pas, on prend des profils sans ordre particulier
       const sugg = recent.error ? (await base()).data : recent.data
-      setSuggestions((sugg as Person[]) || [])
+      setSuggestions(((sugg as Person[]) || []).filter(p => p.full_name?.trim() || p.username?.trim()))
       setLoading(false)
     })
   }, [])

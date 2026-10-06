@@ -120,6 +120,8 @@ const dict = {
   "profile.weeksLived": "weeks lived",
   "profile.countries": "countries visited",
   "profile.memoriesWritten": "memories written",
+  "profile.streak": "Weeks in a row",
+  "profile.favoritesCount": "Favourite moments",
   "profile.photoWeeks": "weeks in photos",
   "profile.about": "About",
   "profile.favorites": "Favorite moments",

@@ -10,7 +10,7 @@ import Logo from '../components/Logo'
 import { btn } from '../components/ui'
 
 // À REMPLACER par une vraie adresse de contact
-const CONTACT_EMAIL = 'norair.hovnanian@gmail.com'
+const CONTACT_EMAIL = 'contact@exemple.com'
 // Date de la dernière mise à jour du texte
 const UPDATED_AT = new Date(2026, 9, 5)
 
@@ -18,37 +18,37 @@ type Section = { title: string, body: string[] }
 
 const FR: { title: string, intro: string, updated: string, sections: Section[] } = {
   title: 'Politique de confidentialité',
-  intro: "Life in Weeks est un journal personnel : vos souvenirs vous appartiennent. Cette page explique simplement quelles données nous conservons, pourquoi, et comment vous gardez le contrôle.",
+  intro: "Life in Weeks est un journal personnel : tes souvenirs t'appartiennent. Cette page explique simplement quelles données nous conservons, pourquoi, et comment tu gardes le contrôle.",
   updated: 'Dernière mise à jour :',
   sections: [
     { title: 'Données collectées', body: [
-      "Compte : votre adresse email et votre mot de passe (chiffré, nous ne le voyons jamais).",
-      "Profil : nom d'utilisateur, nom, biographie, photo de profil et date de naissance (pour construire votre calendrier).",
-      "Contenu : vos souvenirs, évènements, photos et vidéos, lieux associés à vos semaines, ainsi que vos messages, abonnements, commentaires et réactions.",
+      "Compte : ton adresse email et ton mot de passe (chiffré, nous ne le voyons jamais).",
+      "Profil : nom d'utilisateur, nom, biographie, photo de profil et date de naissance (pour construire ton calendrier).",
+      "Contenu : tes souvenirs, évènements, photos et vidéos, lieux associés à tes semaines, ainsi que tes messages, abonnements, commentaires et réactions.",
     ] },
     { title: 'Pourquoi nous les utilisons', body: [
-      "Uniquement pour faire fonctionner l'application : afficher votre calendrier, enregistrer vos souvenirs, vous permettre d'échanger avec les personnes que vous suivez.",
-      "Nous ne vendons pas vos données, nous n'affichons pas de publicité et nous ne les utilisons pas pour du profilage.",
+      "Uniquement pour faire fonctionner l'application : afficher ton calendrier, enregistrer tes souvenirs, te permettre d'échanger avec les personnes que tu suis.",
+      "Nous ne vendons pas tes données, nous n'affichons pas de publicité et nous ne les utilisons pas pour du profilage.",
     ] },
     { title: 'Hébergement', body: [
       "Les données et fichiers sont stockés chez Supabase (base de données et stockage). L'application est servie par Vercel. Ces prestataires agissent pour notre compte et sont soumis à des engagements de confidentialité.",
     ] },
     { title: 'Qui peut voir quoi', body: [
-      "Tout est privé par défaut. Une semaine n'est visible par vos abonnés que si vous choisissez de la partager.",
-      "Votre nom, votre photo et votre biographie sont visibles par les autres utilisateurs. Avec un compte privé, vous validez chaque demande d'abonnement.",
-      "Les messages ne sont visibles que par vous et votre correspondant.",
+      "Tout est privé par défaut. Une semaine n'est visible par tes abonnés que si tu choisis de la partager.",
+      "Ton nom, ta photo et ta biographie sont visibles par les autres utilisateurs. Avec un compte privé, tu valides chaque demande d'abonnement.",
+      "Les messages ne sont visibles que par toi et ton correspondant.",
     ] },
     { title: 'Durée de conservation', body: [
-      "Vos données sont conservées tant que votre compte existe. Quand vous supprimez votre compte, vos souvenirs, fichiers, messages et abonnements sont effacés définitivement. Les copies de sauvegarde techniques disparaissent ensuite dans un délai limité.",
+      "Tes données sont conservées tant que ton compte existe. Quand tu supprimes ton compte, tes souvenirs, fichiers, messages et abonnements sont effacés définitivement. Les copies de sauvegarde techniques disparaissent ensuite dans un délai limité.",
     ] },
-    { title: 'Vos droits (RGPD)', body: [
-      "Vous pouvez à tout moment accéder à vos données, les corriger ou les supprimer.",
-      "Rectification : depuis votre profil, bouton « Modifier ».",
+    { title: 'Tes droits (RGPD)', body: [
+      "Tu peux à tout moment accéder à tes données, les corriger ou les supprimer.",
+      "Rectification : depuis ton profil, bouton « Modifier ».",
       "Suppression : Profil → Modifier → Compte → « Supprimer mon compte ». La suppression est immédiate et définitive.",
-      "Vous pouvez aussi introduire une réclamation auprès de la CNIL (cnil.fr).",
+      "Tu peux aussi introduire une réclamation auprès de la CNIL (cnil.fr).",
     ] },
     { title: 'Contact', body: [
-      `Pour toute question sur vos données : ${CONTACT_EMAIL}`,
+      `Pour toute question sur tes données : ${CONTACT_EMAIL}`,
     ] },
   ],
 }

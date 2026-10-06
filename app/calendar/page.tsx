@@ -306,7 +306,7 @@ export default function CalendarPage() {
       backgroundColor: color ?? 'transparent',
       borderWidth: 1, borderStyle: 'solid',
       borderColor: color ?? futureColor,
-      boxShadow: kind === 'current' ? `0 0 8px ${theme.accent}` : (kind === 'memory' || kind === 'filled') ? `0 0 5px ${color}` : undefined,
+      boxShadow: kind === 'current' ? `0 0 0 2px ${theme.bg}, 0 0 0 3.5px ${theme.accent}, 0 0 10px ${theme.accent}` : (kind === 'memory' || kind === 'filled') ? `0 0 5px ${color}` : undefined,
     }
   }
 
@@ -622,7 +622,7 @@ export default function CalendarPage() {
 
           {/* Barre de recherche */}
           <div className="order-3 md:order-2 relative w-full md:w-auto md:flex-1 md:max-w-md md:ms-6">
-            <Icon name="search" size={18} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-subtle pointer-events-none" />
+            <Icon name="search" size={18} className="absolute z-10 start-3.5 top-1/2 -translate-y-1/2 text-subtle pointer-events-none" />
             <input type="search" value={searchQuery} onChange={e => handleSearch(e.target.value)}
               onFocus={() => searchQuery && setShowSearch(true)}
               onBlur={() => setTimeout(() => setShowSearch(false), 200)}
@@ -819,7 +819,7 @@ export default function CalendarPage() {
                   </div>
                 </>
               ) : (
-                <>
+                <div className="mx-auto" style={{ width: yearColWidth + 52 * (cellSize + cellGap) }}>
                   {/* Numéros de semaines */}
                   <div className="flex" style={{ paddingLeft: yearColWidth, marginBottom: '5px' }}>
                     {Array.from({ length: 52 }, (_, i) => (
@@ -848,7 +848,7 @@ export default function CalendarPage() {
                       {Array.from({ length: 52 }, (_, i) => renderCell(year, i + 1))}
                     </div>
                   ))}
-                </>
+                </div>
               )}
             </div>
 

@@ -129,6 +129,7 @@ export function ReactionButton({ weekId, ownerId, weekNumber }: { weekId: string
   if (!available) return null
 
   const toggle = async () => {
+    try { navigator.vibrate?.(10) } catch { /* ignoré */ }
     if (busy) return
     const me = await getMe()
     if (!me) return

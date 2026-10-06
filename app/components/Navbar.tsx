@@ -11,6 +11,9 @@ import { Avatar } from './ui'
 
 const HIDDEN_ON = ['/login']
 
+// Petite vibration au toucher (téléphones qui la permettent)
+const buzz = () => { try { navigator.vibrate?.(8) } catch { /* ignoré */ } }
+
 export default function Navbar() {
   const pathname = usePathname()
   const { t } = useI18n()
@@ -77,7 +80,7 @@ export default function Navbar() {
         {links.map(link => {
           const active = isActive(link.href)
           return (
-            <Link key={link.href} href={link.href}
+            <Link key={link.href} href={link.href} onClick={buzz}
               className={`relative flex flex-1 md:flex-none flex-col items-center justify-center gap-1 md:w-16 md:h-16 rounded-2xl transition
                 ${active ? 'text-fg' : 'text-subtle hover:text-muted'}`}>
               <span className={`relative flex items-center justify-center w-11 h-7 rounded-full transition ${active ? 'bg-brand-soft text-brand' : ''}`}>
@@ -95,7 +98,7 @@ export default function Navbar() {
             </Link>
           )
         })}
-        <Link href="/profile"
+        <Link href="/profile" onClick={buzz}
           className={`relative flex flex-1 md:flex-none flex-col items-center justify-center gap-1 md:w-16 md:h-16 md:mt-auto rounded-2xl transition
             ${profileActive ? 'text-fg' : 'text-subtle hover:text-muted'}`}>
           <span className="flex items-center justify-center h-7">

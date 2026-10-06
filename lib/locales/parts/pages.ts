@@ -17,6 +17,8 @@ const part = {
   'profile.mediaEmpty': 'Pas encore de photos',
   'profile.mediaEmptyText': 'Ajoute des photos ou des vidéos à tes semaines depuis le calendrier.',
   'profile.statsTitle': 'Statistiques',
+  'profile.streak': 'Semaines de suite remplies',
+  'profile.favoritesCount': 'Moments favoris',
   'profile.changePhoto': 'Changer la photo',
   'profile.photoSaved': 'Photo de profil mise à jour',
   'profile.saved': 'Profil enregistré',
