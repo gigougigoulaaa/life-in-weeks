@@ -10,7 +10,7 @@ import { weekKey, weeksLivedSince } from '@/lib/shareImage'
 import Icon, { type IconName } from '../components/Icon'
 import { Avatar, btn, card, input, EmptyState, Sheet, Skeleton, Spinner, useUI } from '../components/ui'
 
-type Event = { text?: string, description?: string, photos?: string[] }
+type Event = { text?: string, description?: string, photos?: string[], place?: { name?: string } | null }
 type Week = {
   id: string, year: number, week_number: number, title?: string | null, content?: string | null,
   days?: { events?: Event[] }[] | null, media_urls?: string[] | null, location?: { name?: string } | null,
@@ -91,8 +91,9 @@ export default function ProfilePage() {
   const countries = useMemo(() => {
     const set = new Set<string>()
     for (const w of weeks) {
-      const parts = w.location?.name?.split(',')
-      if (parts?.length) set.add(parts[parts.length - 1].trim())
+      const names = (w.days || []).flatMap(d => d?.events || []).map(e => e?.place?.name || '').filter(Boolean)
+      if (names.length === 0 && w.location?.name) names.push(w.location.name)
+      for (const n of names) { const parts = n.split(','); set.add(parts[parts.length - 1].trim().toLowerCase()) }
     }
     return set.size
   }, [weeks])

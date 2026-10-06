@@ -174,8 +174,9 @@ export default function CalendarPage() {
   const [uploadingBg, setUploadingBg] = useState(false)
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null)
   const [weekVisibility, setWeekVisibility] = useState<'private' | 'public'>('private')
-  const [weekPlace, setWeekPlace] = useState<Place | null>(null)
+  const [newEventPlace, setNewEventPlace] = useState<Place | null>(null)
   const [showPlace, setShowPlace] = useState(false)
+  const [showEventForm, setShowEventForm] = useState(false)
   const [memories, setMemories] = useState<any[]>([])
   const [showMemories, setShowMemories] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -358,6 +359,8 @@ export default function CalendarPage() {
     setNewEventTime('')
     setNewEventDesc('')
     setNewEventPhotos([])
+    setNewEventPlace(null)
+    setShowEventForm(false)
   }
 
   // userId : utile au chargement, quand « user » n'est pas encore disponible
@@ -370,7 +373,6 @@ export default function CalendarPage() {
     setDays(EMPTY_DAYS())
     setSelectedWeekId(null)
     setWeekVisibility('private')
-    setWeekPlace(null)
     const uid = userId || user?.id
     if (!uid) return
     const { data, error } = await supabase
@@ -381,8 +383,6 @@ export default function CalendarPage() {
     setSelectedWeekId(existing.id)
     setDays(parseDays(existing.days))
     setWeekVisibility(existing.visibility === 'public' ? 'public' : 'private')
-    const loc = existing.location
-    setWeekPlace(loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lng) ? { lat: loc.lat, lng: loc.lng, name: loc.name || '' } : null)
   }
 
   // Au chargement : utilisateur, profil (date de naissance, thème), semaines, souvenirs, notifications
@@ -429,17 +429,6 @@ export default function CalendarPage() {
     toast(t(next === 'public' ? 'week.nowPublic' : 'week.nowPrivate'))
   }
 
-  // Lieu de la semaine : enregistré tout de suite si la semaine existe, sinon à la création (premier évènement)
-  const changePlace = async (place: Place | null) => {
-    const previous = weekPlace
-    setWeekPlace(place)
-    if (!selectedWeekId) return
-    const { error } = await supabase.from('weeks').update({ location: place }).eq('id', selectedWeekId)
-    if (error) { setWeekPlace(previous); toast(t('common.error'), 'error'); return }
-    setSavedWeeks(prev => prev.map(w => (w.id === selectedWeekId ? { ...w, location: place } : w)))
-    toast(t(place ? 'place.saved' : 'place.removed'))
-  }
-
   // Envoie les fichiers un par un : un fichier refusé n'empêche pas les autres de partir
   const uploadEventPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : []
@@ -459,7 +448,7 @@ export default function CalendarPage() {
     setAddingEvent(true)
     const found = weekDates.findIndex(d => toInputDate(d) === newEventDate)
     const dayIndex = found >= 0 ? found : 0
-    const newEvent = { text: newEventTitle.trim(), description: newEventDesc.trim(), photos: newEventPhotos, time: newEventTime }
+    const newEvent = { text: newEventTitle.trim(), description: newEventDesc.trim(), photos: newEventPhotos, time: newEventTime, ...(newEventPlace ? { place: newEventPlace } : {}) }
     const updatedDays = days.map((d, i) =>
       i === dayIndex ? { events: [...(d?.events || []), newEvent] } : d
     )
@@ -472,7 +461,7 @@ export default function CalendarPage() {
     } else {
       const { data, error } = await supabase.from('weeks').insert({
         user_id: user.id, year: selectedWeek.year, week_number: selectedWeek.week,
-        title: '', content: '', visibility: weekVisibility, days: updatedDays, location: weekPlace
+        title: '', content: '', visibility: weekVisibility, days: updatedDays
       }).select().single()
       if (data) setSelectedWeekId(data.id)
       failed = !!error
@@ -553,7 +542,7 @@ export default function CalendarPage() {
     const isCurrent = year === currentYear && weekNum === currentWeek
     const isBeforeBirth = birthDate && year === birthDate.getFullYear() && weekNum < getWeekNumber(birthDate)
     const hasSaved = savedWeeks.find(w => w.year === year && w.week_number === weekNum)
-    const hasLocation = hasSaved?.location
+    const hasLocation = hasSaved?.location || parseDays(hasSaved?.days).some((d: any) => (d?.events || []).some((e: any) => e?.place))
     const isMemory = memories.find(m => m.year === year && m.week_number === weekNum)
     const kind: CellKind = isBeforeBirth ? 'before' : isCurrent ? 'current' : isMemory ? 'memory' : hasSaved ? 'filled' : isPast ? 'past' : 'future'
     return (
@@ -1134,19 +1123,6 @@ export default function CalendarPage() {
               </span>
             </button>
 
-            {/* Lieu de la semaine (affiché sur la carte) */}
-            <button onClick={() => setShowPlace(true)}
-              className="w-full flex items-center gap-3 text-start rounded-2xl border border-line bg-surface-2/60 px-4 py-3 mb-5 hover:bg-surface-2 transition">
-              <span className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${weekPlace ? 'bg-brand-soft text-brand' : 'bg-surface-3 text-muted'}`}>
-                <Icon name="mapPin" size={18} />
-              </span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm font-medium">{t('place.row')}</span>
-                <span className="block text-muted text-xs mt-0.5 truncate">{weekPlace ? weekPlace.name : t('place.rowEmpty')}</span>
-              </span>
-              <Icon name="chevronRight" size={18} className="text-subtle" />
-            </button>
-
             {allEvents.length === 0 ? (
               <div className="text-center py-8 mb-2">
                 <div className="w-12 h-12 rounded-2xl bg-brand-soft text-brand flex items-center justify-center mx-auto mb-3"><Icon name="calendar" size={22} /></div>
@@ -1154,7 +1130,7 @@ export default function CalendarPage() {
                 <p className="text-muted text-sm mt-1">{t('week.emptyText')}</p>
               </div>
             ) : (() => {
-              const stamp = (ev: any) => fmtStamp(weekDates[ev.dayIndex], ev.event.time)
+              const stamp = (ev: any) => `${fmtStamp(weekDates[ev.dayIndex], ev.event.time)}${ev.event.place?.name ? ` · ${ev.event.place.name}` : ''}`
               // Corbeille (zone de toucher 40 × 40). « overlay » = posée sur une photo
               const del = (ev: any, overlay = false) => (
                 <button onClick={() => deleteEventFromDay(ev.dayIndex, ev.eventIndex)} aria-label={t('common.delete')}
@@ -1311,12 +1287,20 @@ export default function CalendarPage() {
               )
             })()}
 
-            {/* Nouvel évènement */}
-            <div className="rounded-2xl border border-line bg-surface-2/40 p-4 space-y-3">
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <span className="w-7 h-7 rounded-lg bg-brand-soft text-brand flex items-center justify-center"><Icon name="plus" size={16} /></span>
-                {t('week.newEvent')}
-              </p>
+            {/* Nouvel évènement : le formulaire s'ouvre avec un bouton */}
+            {!showEventForm ? (
+              <button onClick={() => setShowEventForm(true)} className={`${btn.primary} w-full`}>
+                <Icon name="plus" size={18} />{t('week.addEvent')}
+              </button>
+            ) : (
+            <div className="rounded-2xl border border-line bg-surface-2/40 p-4 space-y-3 animate-fade-in">
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-2 text-sm font-semibold">
+                  <span className="w-7 h-7 rounded-lg bg-brand-soft text-brand flex items-center justify-center"><Icon name="plus" size={16} /></span>
+                  {t('week.newEvent')}
+                </p>
+                <button onClick={() => setShowEventForm(false)} aria-label={t('common.close')} className={btn.icon}><Icon name="x" size={18} /></button>
+              </div>
               <div className="grid grid-cols-[1fr_auto] gap-2">
                 <input type="date" value={newEventDate} onChange={e => setNewEventDate(e.target.value)}
                   min={weekDates[0] ? toInputDate(weekDates[0]) : undefined}
@@ -1327,10 +1311,19 @@ export default function CalendarPage() {
               </div>
               <input type="text" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addEvent()}
-                placeholder={t('week.titlePh')} className={input} />
+                placeholder={t('week.titlePh')} className={input} autoFocus />
               <textarea value={newEventDesc} onChange={e => setNewEventDesc(e.target.value)}
                 placeholder={t('week.descPh')} rows={2}
                 className={`${input.replace('h-11', '')} py-2.5 resize-none`} />
+
+              <button type="button" onClick={() => setShowPlace(true)}
+                className="w-full flex items-center gap-3 text-start rounded-xl border border-line bg-surface-2 px-3.5 h-11 hover:bg-surface-3 transition">
+                <span className={newEventPlace ? 'text-brand' : 'text-muted'}><Icon name="mapPin" size={18} /></span>
+                <span className={`flex-1 min-w-0 truncate text-sm ${newEventPlace ? 'text-fg' : 'text-subtle'}`}>{newEventPlace ? newEventPlace.name : t('place.rowEmpty')}</span>
+                {newEventPlace
+                  ? <span role="button" aria-label={t('place.remove')} onClick={e => { e.stopPropagation(); setNewEventPlace(null) }} className="text-subtle hover:text-fg"><Icon name="x" size={16} /></span>
+                  : <Icon name="chevronRight" size={16} className="text-subtle" />}
+              </button>
 
               {newEventPhotos.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
@@ -1364,10 +1357,11 @@ export default function CalendarPage() {
                 </button>
               </div>
             </div>
+            )}
           </div>
         )}
       </Sheet>
-      <PlacePicker open={showPlace && !!selectedWeek} onClose={() => setShowPlace(false)} value={weekPlace} onChange={changePlace} />
+      <PlacePicker open={showPlace && !!selectedWeek} onClose={() => setShowPlace(false)} value={newEventPlace} onChange={setNewEventPlace} />
     </div>
   )
 }

@@ -3,7 +3,7 @@
 import { weekOfYear, weekKey, weeksLivedSince } from './shareImage'
 
 /* ---------------- Types ---------------- */
-export type StatEvent = { text?: string, description?: string, photos?: string[] }
+export type StatEvent = { text?: string, description?: string, photos?: string[], place?: { name?: string } | null }
 export type StatWeek = {
   id: string, year: number, week_number: number, title?: string | null, content?: string | null,
   days?: { events?: StatEvent[] }[] | null, media_urls?: string[] | null, location?: { name?: string } | null,
@@ -173,14 +173,17 @@ export function computeStats(weeks: StatWeek[], now: Date): LifeStats {
   const countrySet = new Set<string>()
   const placeMap = new Map<string, { name: string, count: number }>()
   for (const w of weeks) {
-    const name = w.location?.name?.trim()
-    if (!name) continue
-    const parts = name.split(',')
-    countrySet.add(parts[parts.length - 1].trim().toLowerCase())
-    const key = name.toLowerCase()
-    const p = placeMap.get(key)
-    if (p) p.count++
-    else placeMap.set(key, { name, count: 1 })
+    // Lieux des évènements ; l'ancien lieu de semaine ne compte que si aucun évènement n'a son propre lieu
+    const names = (w.days || []).flatMap(d => d?.events || []).map(e => e?.place?.name?.trim() || '').filter(Boolean)
+    if (names.length === 0 && w.location?.name?.trim()) names.push(w.location.name.trim())
+    for (const name of names) {
+      const parts = name.split(',')
+      countrySet.add(parts[parts.length - 1].trim().toLowerCase())
+      const key = name.toLowerCase()
+      const p = placeMap.get(key)
+      if (p) p.count++
+      else placeMap.set(key, { name, count: 1 })
+    }
   }
   const topPlaces = Array.from(placeMap.values()).sort((a, b) => b.count - a.count).slice(0, 3)
 
