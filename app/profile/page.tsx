@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useI18n } from '@/lib/i18n'
 import { uploadMedia, isVideoUrl, MAX_IMAGE_MB } from '@/lib/media'
-import { createLifeImage, shareOrDownload, weekKey, weeksLivedSince } from '@/lib/shareImage'
+import { weekKey, weeksLivedSince } from '@/lib/shareImage'
 import Icon, { type IconName } from '../components/Icon'
 import LanguageSelector from '../components/LanguageSelector'
 import { Avatar, btn, card, input, EmptyState, Sheet, Skeleton, Spinner, useUI } from '../components/ui'
@@ -55,7 +55,6 @@ export default function ProfilePage() {
 
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [sharing, setSharing] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   const fillForm = (p: Profile | null) => {
@@ -86,7 +85,6 @@ export default function ProfilePage() {
   /* ---------------- Valeurs calculées ---------------- */
   const birthDate = profile?.birth_date ? new Date(profile.birth_date) : null
   const lived = birthDate ? weeksLivedSince(birthDate, now) : 0
-  const age = birthDate ? Math.max(0, Math.floor((now.getTime() - birthDate.getTime()) / (365.2425 * 86400000))) : 0
 
   const mediaWeeks = useMemo(() => weeks
     .map(w => ({ week: w, media: mediaOf(w) }))
@@ -129,21 +127,6 @@ export default function ProfilePage() {
     } catch (e) { if ((e as Error)?.name === 'AbortError') return }
     try { await navigator.clipboard.writeText(url); toast(t('profile.linkCopied')) }
     catch { toast(t('common.error'), 'error') }
-  }
-
-  const shareLife = async () => {
-    if (!birthDate || sharing) return
-    setSharing(true)
-    try {
-      const blob = await createLifeImage({
-        name: shownName, birthDate, filledWeeks,
-        subtitle: t('share.subtitle', { n: fmtNumber(lived) }),
-      })
-      await shareOrDownload(blob, 'life-in-weeks.png', t('share.title'))
-    } catch {
-      toast(t('share.failed'), 'error')
-    }
-    setSharing(false)
   }
 
   const uploadAvatar = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -409,35 +392,6 @@ export default function ProfilePage() {
                 </span>
                 <Icon name="chevronRight" size={18} className="text-subtle" />
               </button>
-            )}
-          </section>
-
-          {/* Ma vie en semaines */}
-          <section className={`${card} p-5`}>
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-sm font-semibold">{t('profile.lifeTitle')}</h2>
-              {birthDate && <span className="text-brand font-semibold tabular-nums">{t('profile.age', { n: age })}</span>}
-            </div>
-            {birthDate ? (
-              <>
-                <p className="text-xs text-muted mt-1">{t('share.subtitle', { n: fmtNumber(lived) })}</p>
-                {/* Un point par année vécue (aucune année à venir n'est affichée) */}
-                <div dir="ltr" className="grid gap-1.5 mt-5" style={{ gridTemplateColumns: 'repeat(15, minmax(0, 1fr))' }} aria-hidden="true">
-                  {Array.from({ length: age + 1 }, (_, i) => (
-                    <span key={i} className={`aspect-square rounded-full ${i === age ? 'bg-brand shadow-[0_0_8px_#f5b544]' : 'bg-fg/45'}`} />
-                  ))}
-                </div>
-                <p className="text-xs text-subtle mt-3">{t('profile.yearsLegend')}</p>
-                <button onClick={shareLife} disabled={sharing} className={`${btn.secondary} w-full mt-4`}>
-                  {sharing ? <Spinner size={16} /> : <Icon name="share" size={16} />}
-                  {sharing ? t('profile.shareLifeBusy') : t('profile.shareLife')}
-                </button>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-muted mt-2 leading-relaxed">{t('profile.noBirth')}</p>
-                <Link href="/calendar" className={`${btn.secondary} w-full mt-4`}><Icon name="calendar" size={16} />{t('profile.openCalendar')}</Link>
-              </>
             )}
           </section>
 
