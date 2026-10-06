@@ -32,6 +32,8 @@ const part = {
   'place.noGeo': 'Position introuvable. Autorise la localisation ou cherche un lieu.',
   'week.visPublic': 'Abonnés',
   'week.visPrivate': 'Privé',
+  'common.download': 'Télécharger',
+  'week.openMedia': 'Ouvrir en plein écran',
   'week.more': 'Voir plus',
   'week.less': 'Voir moins',
   'week.visibility': 'Visible par mes abonnés',
