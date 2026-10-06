@@ -1080,6 +1080,14 @@ export default function CalendarPage() {
 
       {/* Fenêtre d'une semaine : évènements triés par ordre chronologique, médias visibles directement */}
       <Sheet wide open={!!selectedWeek} onClose={() => setSelectedWeek(null)}
+        headerExtra={selectedWeek && (
+          <button onClick={toggleVisibility} role="switch" aria-checked={weekVisibility === 'public'}
+            title={t(weekVisibility === 'public' ? 'week.visibilityOn' : 'week.visibilityOff')}
+            className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-xs font-medium border transition active:scale-95 ${weekVisibility === 'public' ? 'bg-brand-soft text-brand border-brand/40' : 'bg-surface-2 text-muted border-line hover:text-fg'}`}>
+            <Icon name={weekVisibility === 'public' ? 'eye' : 'lock'} size={14} />
+            {t(weekVisibility === 'public' ? 'week.visPublic' : 'week.visPrivate')}
+          </button>
+        )}
         title={selectedWeek && (
           <div className="min-w-0">
             <p className="truncate">{t('common.weekOfYear', { n: selectedWeek.week, year: selectedWeek.year })}</p>
@@ -1092,21 +1100,6 @@ export default function CalendarPage() {
         )}>
         {selectedWeek && (
           <div className="p-5 text-fg">
-            {/* Visible par mes abonnés */}
-            <button onClick={toggleVisibility} role="switch" aria-checked={weekVisibility === 'public'}
-              className="w-full flex items-center gap-3 text-start rounded-2xl border border-line bg-surface-2/60 px-4 py-3 mb-5 hover:bg-surface-2 transition">
-              <span className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${weekVisibility === 'public' ? 'bg-brand-soft text-brand' : 'bg-surface-3 text-muted'}`}>
-                <Icon name={weekVisibility === 'public' ? 'eye' : 'lock'} size={18} />
-              </span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm font-medium">{t('week.visibility')}</span>
-                <span className="block text-muted text-xs mt-0.5">{t(weekVisibility === 'public' ? 'week.visibilityOn' : 'week.visibilityOff')}</span>
-              </span>
-              <span className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${weekVisibility === 'public' ? 'bg-brand' : 'bg-surface-3 border border-line-strong'}`}>
-                <span className={`absolute top-0.5 start-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${weekVisibility === 'public' ? 'translate-x-5 rtl:-translate-x-5' : ''}`} />
-              </span>
-            </button>
-
             {allEvents.length === 0 ? (
               <div className="text-center py-8 mb-2">
                 <div className="w-12 h-12 rounded-2xl bg-brand-soft text-brand flex items-center justify-center mx-auto mb-3"><Icon name="calendar" size={22} /></div>
@@ -1115,7 +1108,7 @@ export default function CalendarPage() {
               </div>
             ) : (() => {
               return (
-                <div className="mb-6 divide-y divide-line [&>*]:py-5 first:[&>*]:pt-0">
+                <div className="mb-6 space-y-9">
                   {allEvents.map(ev => (
                     <EventCard key={`${ev.dayIndex}-${ev.eventIndex}`} ev={ev.event} date={fmtStamp(weekDates[ev.dayIndex], ev.event.time)}
                       onDelete={() => deleteEventFromDay(ev.dayIndex, ev.eventIndex)} />

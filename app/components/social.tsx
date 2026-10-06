@@ -823,7 +823,7 @@ export function WeekSheet({ week, author, me, onClose, onBlocked }: {
         )}
 
         {events.length > 0 && (
-          <div className="divide-y divide-line [&>*]:py-5 first:[&>*]:pt-0">
+          <div className="space-y-9">
             {events.map((ev, i) => (
               <EventCard key={i} ev={ev} date={fmtStamp(dates[ev.day], ev.time || undefined)} />
             ))}
