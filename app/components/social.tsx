@@ -12,6 +12,7 @@ import { APP_NAME } from '@/lib/appInfo'
 import { blockUser, type ReportTarget } from '@/lib/moderation'
 import Icon from './Icon'
 import ReportSheet from './ReportSheet'
+import EventCard from './EventCard'
 import { Avatar, EmptyState, Sheet, Skeleton, Spinner, btn, useUI } from './ui'
 
 /* ------------------------------------------------------------------ */
@@ -822,28 +823,11 @@ export function WeekSheet({ week, author, me, onClose, onBlocked }: {
         )}
 
         {events.length > 0 && (
-          <ol className="space-y-4">
-            {events.map((ev, i) => {
-              const photos = (ev.photos || []).filter(Boolean)
-              return (
-                <li key={i} className="border-s-2 border-brand/50 ps-4">
-                  <p className="text-xs text-subtle flex items-center gap-1.5">
-                    <Icon name="clock" size={13} />{fmtStamp(dates[ev.day], ev.time || undefined)}
-                  </p>
-                  <p className="font-medium mt-0.5">{ev.text || t('common.untitled')}</p>
-                  {ev.description && <p className="text-sm text-muted mt-1 whitespace-pre-wrap leading-relaxed">{ev.description}</p>}
-                  {photos.length > 0 && (
-                    <div className={`grid gap-1.5 mt-2 ${photos.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                      {photos.map((u, j) => (
-                        <MediaItem key={j} url={u}
-                          className={`w-full rounded-xl object-cover ${photos.length === 1 ? 'max-h-96' : 'aspect-square'}`} />
-                      ))}
-                    </div>
-                  )}
-                </li>
-              )
-            })}
-          </ol>
+          <div className="divide-y divide-line [&>*]:py-5 first:[&>*]:pt-0">
+            {events.map((ev, i) => (
+              <EventCard key={i} ev={ev} date={fmtStamp(dates[ev.day], ev.time || undefined)} />
+            ))}
+          </div>
         )}
 
         {extraMedia.length > 0 && (

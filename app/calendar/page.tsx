@@ -6,6 +6,7 @@ import { useI18n, type Key } from '@/lib/i18n'
 import { uploadMedia, isVideoUrl, MAX_VIDEO_MB, type UploadError } from '@/lib/media'
 import LanguageSelector from '../components/LanguageSelector'
 import PlacePicker, { type Place } from './PlacePicker'
+import EventCard from '../components/EventCard'
 import Icon, { type IconName } from '../components/Icon'
 import Logo from '../components/Logo'
 import { Sheet, Avatar, EmptyState, Skeleton, Spinner, useUI, btn, input, card } from '../components/ui'
@@ -918,23 +919,6 @@ export default function CalendarPage() {
             </div>
           </section>
 
-          {/* Disposition des évènements */}
-          <section>
-            {sectionTitle({ title: t('theme.layoutTitle'), help: t('theme.layoutHelp') })}
-            <div className="grid grid-cols-4 gap-2">
-              {LAYOUTS.map(l => {
-                const active = eventLayout === l.key
-                return (
-                  <button key={l.key} onClick={() => chooseLayout(l.key)} aria-pressed={active}
-                    className={`aspect-square flex flex-col items-center justify-center gap-1.5 rounded-2xl border text-xs font-medium transition active:scale-95 ${active ? 'border-brand bg-brand-soft text-fg' : 'border-line bg-surface-2 text-muted hover:text-fg hover:bg-surface-3'}`}>
-                    <Icon name={l.icon} size={22} className={active ? 'text-brand' : ''} />
-                    {t(l.labelKey)}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
           {/* Couleurs */}
           <section>
             {sectionTitle({ title: t('theme.colorsTitle'), help: t('theme.colorsHelp') })}
@@ -1130,159 +1114,12 @@ export default function CalendarPage() {
                 <p className="text-muted text-sm mt-1">{t('week.emptyText')}</p>
               </div>
             ) : (() => {
-              const stamp = (ev: any) => `${fmtStamp(weekDates[ev.dayIndex], ev.event.time)}${ev.event.place?.name ? ` · ${ev.event.place.name}` : ''}`
-              // Corbeille (zone de toucher 40 × 40). « overlay » = posée sur une photo
-              const del = (ev: any, overlay = false) => (
-                <button onClick={() => deleteEventFromDay(ev.dayIndex, ev.eventIndex)} aria-label={t('common.delete')}
-                  className={`w-10 h-10 shrink-0 rounded-full inline-flex items-center justify-center transition active:scale-90 ${overlay ? 'bg-black/55 text-white hover:bg-black/75 backdrop-blur' : 'text-subtle hover:text-danger hover:bg-surface-2'}`}>
-                  <Icon name="trash" size={17} />
-                </button>
-              )
-
-              if (eventLayout === 'journal') {
-                return (
-                  <div className="space-y-7 mb-6">
-                    {allEvents.map(ev => {
-                      const photos: string[] = ev.event.photos || []
-                      return (
-                        <div key={`${ev.dayIndex}-${ev.eventIndex}`}>
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 pt-0.5">
-                              <p className="text-subtle text-xs">{stamp(ev)}</p>
-                              <p className="text-base font-semibold mt-0.5">{ev.event.text}</p>
-                            </div>
-                            {del(ev)}
-                          </div>
-                          {photos.length > 0 && (
-                            <div className={`grid gap-1.5 mt-2 ${photos.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                              {photos.map((u, i) => (
-                                <Media key={i} url={u}
-                                  className={`w-full object-cover rounded-xl bg-black ${photos.length === 1 ? 'max-h-80' : 'h-36'} ${photos.length > 1 && photos.length % 2 === 1 && i === 0 ? 'col-span-2 !h-48' : ''}`} />
-                              ))}
-                            </div>
-                          )}
-                          {ev.event.description && <p className="text-muted text-sm mt-2 leading-relaxed">{ev.event.description}</p>}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              }
-
-              if (eventLayout === 'mosaic') {
-                let n = 0
-                return (
-                  <div className="columns-2 gap-2 mb-6">
-                    {allEvents.flatMap(ev => {
-                      const photos: string[] = ev.event.photos || []
-                      if (photos.length === 0) {
-                        return [(
-                          <div key={`${ev.dayIndex}-${ev.eventIndex}`} className="break-inside-avoid mb-2 rounded-xl bg-surface-2 border border-line p-3">
-                            <div className="flex items-start justify-between gap-1">
-                              <p className="text-sm font-medium pt-2">{ev.event.text}</p>
-                              {del(ev)}
-                            </div>
-                            {ev.event.description && <p className="text-muted text-xs mt-1">{ev.event.description}</p>}
-                            <p className="text-subtle text-xs mt-1.5">{stamp(ev)}</p>
-                          </div>
-                        )]
-                      }
-                      return photos.map((u, i) => (
-                        <div key={`${ev.dayIndex}-${ev.eventIndex}-${i}`}
-                          className="break-inside-avoid mb-2 relative rounded-xl overflow-hidden bg-surface-2"
-                          style={{ aspectRatio: RATIOS[n++ % RATIOS.length] }}>
-                          <Media url={u} className="absolute inset-0 w-full h-full object-cover" />
-                          {i === 0 && (
-                            <div className="absolute start-0 end-0 top-0 p-2.5 pe-12 pb-6 bg-gradient-to-b from-black/80 to-transparent pointer-events-none text-white">
-                              <p className="text-xs font-semibold">{ev.event.text}</p>
-                              <p className="text-[11px] text-white/75">{stamp(ev)}</p>
-                            </div>
-                          )}
-                          {i === 0 && <div className="absolute top-1 end-1">{del(ev, true)}</div>}
-                        </div>
-                      ))
-                    })}
-                  </div>
-                )
-              }
-
-              if (eventLayout === 'cards') {
-                return (
-                  <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory pb-2 mb-6">
-                    {allEvents.flatMap(ev => {
-                      const photos: string[] = ev.event.photos || []
-                      const base = 'snap-center shrink-0 w-[86%] h-[60vh] max-h-[460px] rounded-2xl relative overflow-hidden bg-surface-2 border border-line'
-                      if (photos.length === 0) {
-                        return [(
-                          <div key={`${ev.dayIndex}-${ev.eventIndex}`} className={`${base} flex flex-col justify-end p-5`}>
-                            <div className="absolute top-2 end-2">{del(ev)}</div>
-                            <p className="text-subtle text-xs">{stamp(ev)}</p>
-                            <p className="text-lg font-semibold">{ev.event.text}</p>
-                            {ev.event.description && <p className="text-muted text-sm mt-1">{ev.event.description}</p>}
-                          </div>
-                        )]
-                      }
-                      return photos.map((u, i) => (
-                        <div key={`${ev.dayIndex}-${ev.eventIndex}-${i}`} className={base}>
-                          <Media url={u} className="absolute inset-0 w-full h-full object-cover" />
-                          <div className={`absolute inset-x-0 bottom-0 p-4 pt-14 bg-gradient-to-t from-black/85 to-transparent pointer-events-none text-white ${isVideoUrl(u) ? 'pb-14' : ''}`}>
-                            <p className="text-white/75 text-xs">{stamp(ev)}</p>
-                            <p className="text-base font-semibold">{ev.event.text}</p>
-                            {ev.event.description && i === 0 && <p className="text-white/80 text-xs mt-0.5">{ev.event.description}</p>}
-                          </div>
-                          <div className="absolute top-2 end-2">{del(ev, true)}</div>
-                        </div>
-                      ))
-                    })}
-                  </div>
-                )
-              }
-
-              // album (style « papier » volontaire : post-it et photos polaroïd)
               return (
-                <div className="space-y-5 mb-6 py-2">
-                  {allEvents.map((ev, idx) => {
-                    const photos: string[] = ev.event.photos || []
-                    const tilt = { transform: `rotate(${idx % 2 ? 1.6 : -1.8}deg)` }
-                    if (photos.length === 0) {
-                      return (
-                        <div key={`${ev.dayIndex}-${ev.eventIndex}`} style={tilt}
-                          className="bg-amber-200 text-amber-950 text-sm p-3 pe-1 w-4/5 mx-auto shadow-lg flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-medium">{ev.event.text}</p>
-                            {ev.event.description && <p className="text-xs mt-1">{ev.event.description}</p>}
-                            <p className="text-[11px] opacity-70 mt-1">{stamp(ev)}</p>
-                          </div>
-                          <button onClick={() => deleteEventFromDay(ev.dayIndex, ev.eventIndex)} aria-label={t('common.delete')}
-                            className="w-10 h-10 shrink-0 rounded-full inline-flex items-center justify-center text-amber-900/60 hover:text-red-700 transition">
-                            <Icon name="trash" size={17} />
-                          </button>
-                        </div>
-                      )
-                    }
-                    return (
-                      <div key={`${ev.dayIndex}-${ev.eventIndex}`} style={tilt}
-                        className="bg-zinc-100 text-zinc-900 p-2 pb-3 rounded-sm shadow-lg w-[92%] mx-auto">
-                        <div className={`grid gap-1.5 ${photos.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                          {photos.map((u, i) => (
-                            <Media key={i} url={u}
-                              className={`w-full object-cover bg-black ${photos.length === 1 ? 'max-h-72' : 'h-32'} ${photos.length > 1 && photos.length % 2 === 1 && i === 0 ? 'col-span-2 !h-44' : ''}`} />
-                          ))}
-                        </div>
-                        <div className="flex items-start justify-between gap-2 mt-2">
-                          <div className="min-w-0">
-                            <p className="font-semibold text-sm" style={{ fontFamily: 'Georgia, serif' }}>{ev.event.text}</p>
-                            {ev.event.description && <p className="text-xs text-zinc-600 mt-0.5">{ev.event.description}</p>}
-                            <p className="text-[11px] text-zinc-500 mt-0.5">{stamp(ev)}</p>
-                          </div>
-                          <button onClick={() => deleteEventFromDay(ev.dayIndex, ev.eventIndex)} aria-label={t('common.delete')}
-                            className="w-10 h-10 shrink-0 rounded-full inline-flex items-center justify-center text-zinc-400 hover:text-red-600 transition">
-                            <Icon name="trash" size={17} />
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
+                <div className="mb-6 divide-y divide-line [&>*]:py-5 first:[&>*]:pt-0">
+                  {allEvents.map(ev => (
+                    <EventCard key={`${ev.dayIndex}-${ev.eventIndex}`} ev={ev.event} date={fmtStamp(weekDates[ev.dayIndex], ev.event.time)}
+                      onDelete={() => deleteEventFromDay(ev.dayIndex, ev.eventIndex)} />
+                  ))}
                 </div>
               )
             })()}
