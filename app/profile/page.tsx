@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useI18n } from '@/lib/i18n'
 import { uploadMedia, isVideoUrl, MAX_IMAGE_MB } from '@/lib/media'
-import { createLifeImage, shareOrDownload, weekKey, weeksLivedSince, LIFE_WEEKS, LIFE_YEARS } from '@/lib/shareImage'
+import { createLifeImage, shareOrDownload, weekKey, weeksLivedSince } from '@/lib/shareImage'
 import Icon, { type IconName } from '../components/Icon'
 import LanguageSelector from '../components/LanguageSelector'
 import { Avatar, btn, card, input, EmptyState, Sheet, Skeleton, Spinner, useUI } from '../components/ui'
@@ -86,7 +86,6 @@ export default function ProfilePage() {
   /* ---------------- Valeurs calculées ---------------- */
   const birthDate = profile?.birth_date ? new Date(profile.birth_date) : null
   const lived = birthDate ? weeksLivedSince(birthDate, now) : 0
-  const pct = Math.min(100, Math.round((lived / LIFE_WEEKS) * 1000) / 10)
   const age = birthDate ? Math.max(0, Math.floor((now.getTime() - birthDate.getTime()) / (365.2425 * 86400000))) : 0
 
   const mediaWeeks = useMemo(() => weeks
@@ -138,7 +137,7 @@ export default function ProfilePage() {
     try {
       const blob = await createLifeImage({
         name: shownName, birthDate, filledWeeks,
-        subtitle: t('share.subtitle', { n: fmtNumber(lived), p: fmtNumber(pct) }),
+        subtitle: t('share.subtitle', { n: fmtNumber(lived) }),
       })
       await shareOrDownload(blob, 'life-in-weeks.png', t('share.title'))
     } catch {
@@ -417,20 +416,15 @@ export default function ProfilePage() {
           <section className={`${card} p-5`}>
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-sm font-semibold">{t('profile.lifeTitle')}</h2>
-              {birthDate && <span className="text-brand font-semibold tabular-nums">{fmtNumber(pct)} %</span>}
+              {birthDate && <span className="text-brand font-semibold tabular-nums">{t('profile.age', { n: age })}</span>}
             </div>
             {birthDate ? (
               <>
-                <p className="text-xs text-muted mt-1">
-                  {t('profile.lifeOf', { n: fmtNumber(lived), total: fmtNumber(LIFE_WEEKS) })} · {t('profile.age', { n: age })}
-                </p>
-                <div className="h-2 rounded-full bg-surface-3 mt-4 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-                  <div className="h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
-                </div>
-                {/* 90 points : un par année de vie */}
+                <p className="text-xs text-muted mt-1">{t('share.subtitle', { n: fmtNumber(lived) })}</p>
+                {/* Un point par année vécue (aucune année à venir n'est affichée) */}
                 <div dir="ltr" className="grid gap-1.5 mt-5" style={{ gridTemplateColumns: 'repeat(15, minmax(0, 1fr))' }} aria-hidden="true">
-                  {Array.from({ length: LIFE_YEARS }, (_, i) => (
-                    <span key={i} className={`aspect-square rounded-full ${i === age ? 'bg-brand shadow-[0_0_8px_#f5b544]' : i < age ? 'bg-fg/45' : 'border border-line-strong'}`} />
+                  {Array.from({ length: age + 1 }, (_, i) => (
+                    <span key={i} className={`aspect-square rounded-full ${i === age ? 'bg-brand shadow-[0_0_8px_#f5b544]' : 'bg-fg/45'}`} />
                   ))}
                 </div>
                 <p className="text-xs text-subtle mt-3">{t('profile.yearsLegend')}</p>

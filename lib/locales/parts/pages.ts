@@ -5,8 +5,6 @@ const part = {
   'profile.shareLink': 'Partager mon profil',
   'profile.linkCopied': 'Lien copié',
   'profile.lifeTitle': 'Ma vie en semaines',
-  'profile.lifeOf': '{n} semaines sur {total}',
-  'profile.lifePercent': '{n} % de 90 ans',
   'profile.age': '{n} ans',
   'profile.yearsLegend': 'Un point = une année',
   'profile.noBirth': 'Indique ta date de naissance dans le calendrier pour voir ta vie en semaines.',
@@ -97,7 +95,7 @@ const part = {
   'notif.allRead': 'Tout est lu',
 
   // Partage
-  'share.subtitle': '{n} semaines vécues · {p} %',
+  'share.subtitle': '{n} semaines vécues',
   'share.title': 'Ma vie en semaines',
   'share.failed': "Impossible de créer l'image",
 }

@@ -2,9 +2,6 @@
 // et la partage (menu de partage du téléphone) ou la télécharge (ordinateur).
 // Les textes sont fournis par la page qui appelle : ce fichier ne traduit rien.
 
-export const LIFE_YEARS = 90
-export const LIFE_WEEKS = LIFE_YEARS * 52 // 4 680 semaines
-
 // Même numérotation des semaines que le calendrier (semaine 1 = début janvier)
 export function weekOfYear(date: Date): number {
   const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
@@ -25,9 +22,17 @@ export async function createLifeImage(opts: {
   birthDate: Date
   filledWeeks: Set<string> // "AAAA-NN"
   accent?: string
-  subtitle?: string // ex. « 1 234 semaines vécues · 27 % » (déjà traduit par l'appelant)
+  subtitle?: string // ex. « 1 234 semaines vécues » (déjà traduit par l'appelant)
 }): Promise<Blob> {
-  const W = 1080, H = 1350
+  const W = 1080
+  const now = new Date()
+  // On ne dessine que les années déjà vécues (aucune année à venir)
+  const rows = Math.max(1, now.getFullYear() - opts.birthDate.getFullYear() + 1)
+  const gridTop = 250, gridLeft = 80, gridRight = W - 80
+  const stepX = (gridRight - gridLeft) / 52
+  const stepY = stepX * 1.25
+  const gridBottom = gridTop + rows * stepY
+  const H = Math.max(1080, Math.round(gridBottom + 170))
   const accent = opts.accent || '#f5b544'
   const canvas = document.createElement('canvas')
   canvas.width = W
@@ -44,22 +49,16 @@ export async function createLifeImage(opts: {
   ctx.fillRect(0, 0, W, H)
 
   // Titre + sous-titre
-  const now = new Date()
   const lived = weeksLivedSince(opts.birthDate, now)
-  const pct = Math.min(100, Math.round((lived / LIFE_WEEKS) * 1000) / 10)
   ctx.textBaseline = 'alphabetic'
   ctx.fillStyle = '#fafafa'
   ctx.font = `600 56px ${font}`
   ctx.fillText(fitText(ctx, opts.name, W - 160), 80, 140)
   ctx.fillStyle = '#a1a1aa'
   ctx.font = `400 30px ${font}`
-  ctx.fillText(opts.subtitle || `${lived} · ${pct} %`, 80, 192)
+  ctx.fillText(opts.subtitle || `${lived}`, 80, 192)
 
-  // Grille : 90 lignes (années de vie) × 52 colonnes (semaines)
-  const gridTop = 250, gridBottom = H - 150
-  const gridLeft = 80, gridRight = W - 80
-  const stepX = (gridRight - gridLeft) / 52
-  const stepY = (gridBottom - gridTop) / LIFE_YEARS
+  // Grille : une ligne par année vécue × 52 colonnes (semaines)
   const r = Math.min(stepX, stepY) * 0.36
 
   const birthYear = opts.birthDate.getFullYear()
@@ -68,7 +67,7 @@ export async function createLifeImage(opts: {
   const curWeek = weekOfYear(now)
   let current: { x: number, y: number } | null = null
 
-  for (let row = 0; row < LIFE_YEARS; row++) {
+  for (let row = 0; row < rows; row++) {
     const year = birthYear + row
     for (let col = 0; col < 52; col++) {
       const week = col + 1
