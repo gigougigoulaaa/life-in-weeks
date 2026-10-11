@@ -81,7 +81,7 @@ const fr = {
   'color.label': 'Années et numéros de semaines',
   'color.past': 'Semaines passées',
   'color.accent': 'Semaine actuelle',
-  'color.filled': 'Semaines remplies',
+  'color.filled': 'Semaines avec évènement à venir',
   'color.memory': 'Semaines de souvenirs',
   'color.future': 'Semaines à venir (contour)',
 

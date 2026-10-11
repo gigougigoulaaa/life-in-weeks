@@ -1,10 +1,10 @@
 // Envoi des photos et vidéos vers Supabase Storage.
-// - Les photos sont réduites (2048 px max) et compressées avant l'envoi : plus rapide, moins de stockage.
+// - Les photos sont réduites (1600 px max) et compressées (WebP si le navigateur sait le faire, sinon JPEG) avant l'envoi : plus rapide, beaucoup moins de stockage.
 // - Les vidéos sont limitées en taille et en format (ceux que les navigateurs savent lire).
 // - Les noms de fichiers sont remplacés par un nom sûr (pas d'espaces, d'accents ni d'emojis).
 import { supabase } from './supabase'
 
-export const MAX_VIDEO_MB = 50
+export const MAX_VIDEO_MB = 30
 export const MAX_IMAGE_MB = 25
 
 const VIDEO_EXT = ['mp4', 'mov', 'webm', 'm4v']
@@ -26,7 +26,7 @@ function safeName(ext: string): string {
 }
 
 // Réduit une photo. Si le navigateur ne sait pas la lire (ex. HEIC hors Safari), renvoie null.
-async function compressImage(file: File, maxDim = 2048, quality = 0.85): Promise<Blob | null> {
+async function compressImage(file: File, maxDim = 1600, quality = 0.8): Promise<{ blob: Blob, ext: string, type: string } | null> {
   if (file.type === 'image/gif' || file.type === 'image/svg+xml') return null
   try {
     const bitmap = await createImageBitmap(file)
@@ -36,8 +36,12 @@ async function compressImage(file: File, maxDim = 2048, quality = 0.85): Promise
     canvas.height = Math.round(bitmap.height * scale)
     canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
     bitmap.close?.()
-    const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/jpeg', quality))
-    return blob && blob.size < file.size ? blob : null
+    const toBlob = (type: string) => new Promise<Blob | null>(res => canvas.toBlob(res, type, quality))
+    // WebP est ~25 % plus léger que JPEG ; certains navigateurs (Safari) ne savent pas l'encoder et renvoient autre chose
+    let blob = await toBlob('image/webp')
+    let ext = 'webp', type = 'image/webp'
+    if (!blob || blob.type !== 'image/webp') { blob = await toBlob('image/jpeg'); ext = 'jpg'; type = 'image/jpeg' }
+    return blob && blob.size < file.size ? { blob, ext, type } : null
   } catch {
     return null
   }
@@ -89,7 +93,7 @@ export async function uploadMedia(bucket: string, folder: string, file: File, op
       body = jpeg; ext = 'jpg'; contentType = 'image/jpeg'
     }
     const small = await compressImage(source as File, opts.maxDim)
-    if (small) { body = small; ext = 'jpg'; contentType = 'image/jpeg' }
+    if (small) { body = small.blob; ext = small.ext; contentType = small.type }
   }
   if (ext === 'm4v') ext = 'mp4'
 

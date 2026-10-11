@@ -18,6 +18,7 @@ const part = {
   'week.deleted': 'Évènement supprimé',
   'week.added': 'Évènement ajouté',
   'week.removeMedia': 'Retirer ce fichier',
+  'week.upcoming': 'À venir',
   'week.editEvent': 'Modifier l’évènement',
   'week.editTitle': 'Modifier l’évènement',
   'week.save': 'Enregistrer',
@@ -72,10 +73,10 @@ const part = {
   'theme.bgSaved': 'Fond mis à jour',
   'theme.account': 'Compte',
   'theme.legend.past': 'Passée',
-  'theme.legend.filled': 'Remplie',
+  'theme.legend.filled': 'Évènement à venir',
   'theme.legend.memory': 'Souvenir',
   'theme.legend.now': 'Maintenant',
-  'theme.legend.future': 'À venir',
+  'theme.legend.future': 'Semaine future',
 
   // Accueil (première utilisation)
   'onb.step1Title': 'Ta vie tient sur une seule page',

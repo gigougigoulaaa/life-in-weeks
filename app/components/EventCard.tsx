@@ -75,7 +75,7 @@ function Lightbox({ urls, start, onClose }: { urls: string[], start: number, onC
   )
 }
 
-export default function EventCard({ ev, date, onDelete, onEdit }: { ev: EventCardData, date: string, onDelete?: () => void, onEdit?: () => void }) {
+export default function EventCard({ ev, date, onDelete, onEdit, upcoming }: { ev: EventCardData, date: string, onDelete?: () => void, onEdit?: () => void, upcoming?: boolean }) {
   const { t } = useI18n()
   const [idx, setIdx] = useState(0)
   const [more, setMore] = useState(false)
@@ -100,7 +100,10 @@ export default function EventCard({ ev, date, onDelete, onEdit }: { ev: EventCar
     <article>
       {/* Ruban : date et heure, en petites capitales */}
       <div className="flex items-center justify-between gap-3 mb-1.5">
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand truncate">{date}</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand truncate">
+          {date}
+          {upcoming && <span className="ms-2 align-middle normal-case tracking-normal text-[10.5px] font-semibold px-2 py-0.5 rounded-full border border-dashed border-brand/70">{t('week.upcoming')}</span>}
+        </p>
         {(onEdit || onDelete) && (
           <div className="flex items-center shrink-0 -me-2 -my-2">
             {onEdit && <button onClick={onEdit} aria-label={t('week.editEvent')} className={btn.icon}><Icon name="pencil" size={17} /></button>}

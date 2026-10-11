@@ -43,18 +43,18 @@ type ThemeType = {
   text?: string    // titre, boutons
   label?: string   // années et numéros de semaines
   future?: string  // contour des semaines à venir
-  filled?: string  // semaines remplies
-  memory?: string  // semaines de souvenirs
+  filled?: string  // semaines avec un évènement à venir
+  memory?: string  // semaines passées avec des évènements (souvenirs)
 }
 
 const THEMES: ThemeType[] = [
-  { name: 'Défaut', accent: '#ffffff', past: '#52525b', bg: '#000000' },
-  { name: 'Océan', accent: '#38bdf8', past: '#0369a1', bg: '#0c1a2e' },
-  { name: 'Forêt', accent: '#4ade80', past: '#166534', bg: '#0a1a0e' },
-  { name: 'Coucher de soleil', accent: '#fb923c', past: '#9a3412', bg: '#1a0a00' },
-  { name: 'Rose', accent: '#f472b6', past: '#9d174d', bg: '#1a0010' },
-  { name: 'Violet', accent: '#a78bfa', past: '#5b21b6', bg: '#0d0a1a' },
-  { name: 'Or', accent: '#fbbf24', past: '#92400e', bg: '#1a1400' },
+  { name: 'Défaut', accent: '#ffffff', past: '#52525b', bg: '#000000', memory: '#fbbf24', filled: '#38bdf8' },
+  { name: 'Océan', accent: '#38bdf8', past: '#0369a1', bg: '#0c1a2e', memory: '#22d3ee', filled: '#fbbf24' },
+  { name: 'Forêt', accent: '#4ade80', past: '#166534', bg: '#0a1a0e', memory: '#a3e635', filled: '#facc15' },
+  { name: 'Coucher de soleil', accent: '#fb923c', past: '#9a3412', bg: '#1a0a00', memory: '#fde047', filled: '#f472b6' },
+  { name: 'Rose', accent: '#f472b6', past: '#9d174d', bg: '#1a0010', memory: '#fb7185', filled: '#c4b5fd' },
+  { name: 'Violet', accent: '#a78bfa', past: '#5b21b6', bg: '#0d0a1a', memory: '#c084fc', filled: '#67e8f9' },
+  { name: 'Or', accent: '#fbbf24', past: '#92400e', bg: '#1a1400', memory: '#fde047', filled: '#fb923c' },
 ]
 
 const END_YEAR = 2150
@@ -339,13 +339,20 @@ export default function CalendarPage() {
   const cellStyle = (kind: CellKind): React.CSSProperties => {
     if (kind === 'before') return { opacity: 0, backgroundColor: 'transparent', borderWidth: 0, borderStyle: 'solid', borderColor: 'transparent' }
     const color = kind === 'current' ? theme.accent : kind === 'memory' ? memoryColor : kind === 'filled' ? fillColor : kind === 'past' ? theme.past : undefined
+    if (kind === 'filled') {
+      // Évènement à venir : case évidée avec un contour de couleur, bien distincte d'un souvenir (plein et lumineux)
+      return {
+        opacity: 1, backgroundColor: `color-mix(in srgb, ${color} 28%, transparent)`,
+        borderWidth: 1.5, borderStyle: 'dashed', borderColor: color,
+      }
+    }
     return {
       // Semaines passées ordinaires : discrètes. Semaines avec souvenirs : pleines et lumineuses.
       opacity: kind === 'past' ? 0.55 : 1,
       backgroundColor: color ?? 'transparent',
       borderWidth: 1, borderStyle: 'solid',
       borderColor: color ?? futureColor,
-      boxShadow: kind === 'current' ? `0 0 0 2px ${theme.bg}, 0 0 0 3.5px ${theme.accent}, 0 0 10px ${theme.accent}` : (kind === 'memory' || kind === 'filled') ? `0 0 5px ${color}` : undefined,
+      boxShadow: kind === 'current' ? `0 0 0 2px ${theme.bg}, 0 0 0 3.5px ${theme.accent}, 0 0 10px ${theme.accent}` : kind === 'memory' ? `0 0 5px ${color}` : undefined,
     }
   }
 
@@ -608,6 +615,13 @@ export default function CalendarPage() {
   const allEvents = days
     .flatMap((d, dayIndex) => (d?.events || []).map((event: any, eventIndex: number) => ({ event, dayIndex, eventIndex })))
     .sort((a, b) => a.dayIndex - b.dayIndex || (a.event.time || '').localeCompare(b.event.time || '') || a.eventIndex - b.eventIndex)
+  // Évènement pas encore passé ? (sans heure : valable jusqu'à la fin de la journée)
+  const isUpcoming = (day: Date | undefined, time?: string) => {
+    if (!day) return false
+    const d = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59)
+    if (time && /^\d{1,2}:\d{2}/.test(time)) { const [h, m] = time.split(':'); d.setHours(Number(h), Number(m), 0, 0) }
+    return d.getTime() > Date.now()
+  }
   const { cellSize, cellGap, yearColWidth, sideMargin } = layout
 
   // Rituel : la semaine actuelle n'a encore aucun évènement ?
@@ -649,8 +663,10 @@ export default function CalendarPage() {
     const isBeforeBirth = birthDate && year === birthDate.getFullYear() && weekNum < getWeekNumber(birthDate)
     const hasSaved = savedWeeks.find(w => w.year === year && w.week_number === weekNum && weekHasContent(w))
     const hasLocation = hasSaved?.location || parseDays(hasSaved?.days).some((d: any) => (d?.events || []).some((e: any) => e?.place))
-    const isMemory = memories.find(m => m.year === year && m.week_number === weekNum && weekHasContent(m))
-    const kind: CellKind = isBeforeBirth ? 'before' : isCurrent ? 'current' : isMemory ? 'memory' : hasSaved ? 'filled' : isPast ? 'past' : 'future'
+    // Souvenir : même numéro de semaine qu'aujourd'hui, une année passée, avec du contenu (calculé en direct, sans rechargement)
+    const isMemory = year !== currentYear && weekNum === currentWeek && !!hasSaved
+    // Semaine passée avec des évènements = souvenir ; semaine à venir avec des évènements = prévu (elle devient un souvenir quand la semaine est écoulée)
+    const kind: CellKind = isBeforeBirth ? 'before' : isCurrent ? 'current' : hasSaved ? (isPast ? 'memory' : 'filled') : isPast ? 'past' : 'future'
     return (
       <div key={weekNum}
         onClick={() => !isBeforeBirth && openWeek(year, weekNum)}
@@ -802,7 +818,7 @@ export default function CalendarPage() {
                 {onbStep === 0 && (
                   <>
                     <div className="h-36 flex items-center justify-center mb-6">
-                      {miniGrid({ rows: 8, cols: 16, now: 83, size: 7, gap: 3, filled: [12, 30, 47, 61, 75], memory: [22, 54] })}
+                      {miniGrid({ rows: 8, cols: 16, now: 83, size: 7, gap: 3, filled: [90, 104], memory: [12, 22, 30, 47, 54, 61, 75] })}
                     </div>
                     <h2 className="text-2xl font-semibold tracking-tight">{t('onb.step1Title')}</h2>
                     <p className="text-muted text-sm mt-2 leading-relaxed">{t('onb.step1Text')}</p>
@@ -811,7 +827,7 @@ export default function CalendarPage() {
                 {onbStep === 1 && (
                   <>
                     <div className="h-36 flex items-center justify-center mb-6">
-                      {miniGrid({ rows: 3, cols: 9, now: 16, size: 18, gap: 6, filled: [1, 4, 8, 11, 14], memory: [6] })}
+                      {miniGrid({ rows: 3, cols: 9, now: 16, size: 18, gap: 6, filled: [20, 24], memory: [1, 4, 6, 8, 11, 14] })}
                     </div>
                     <h2 className="text-2xl font-semibold tracking-tight">{t('onb.step2Title')}</h2>
                     <p className="text-muted text-sm mt-2 leading-relaxed">{t('onb.step2Text')}</p>
@@ -1012,7 +1028,7 @@ export default function CalendarPage() {
                 backgroundColor: theme.bg,
                 backgroundImage: bgImage ? `url(${bgImage})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center'
               }}>
-              {miniGrid({ rows: 3, cols: 13, now: 22, size: 16, gap: 5, filled: [3, 9, 14, 18], memory: [6] })}
+              {miniGrid({ rows: 3, cols: 13, now: 22, size: 16, gap: 5, filled: [26, 31], memory: [3, 6, 9, 14, 18] })}
               <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
                 {legend.map(l => (
                   <span key={l.kind} className="inline-flex items-center gap-1.5 text-xs" style={{ color: labelColor }}>
@@ -1033,10 +1049,12 @@ export default function CalendarPage() {
                 return (
                   <button key={th.name} onClick={() => { setTheme(th); saveTheme(th) }} aria-pressed={active}
                     className="flex flex-col items-center gap-1.5 group">
-                    <span className={`w-12 h-12 rounded-full border-2 flex items-center justify-center gap-1 transition group-active:scale-95 ${active ? 'border-brand' : 'border-line group-hover:border-line-strong'}`}
+                    <span className={`w-12 h-12 rounded-full border-2 flex items-center justify-center gap-0.5 transition group-active:scale-95 ${active ? 'border-brand' : 'border-line group-hover:border-line-strong'}`}
                       style={{ backgroundColor: th.bg }}>
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: th.past }} />
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: th.accent, boxShadow: `0 0 6px ${th.accent}` }} />
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: th.past }} />
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: th.memory ?? th.accent }} />
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: th.accent, boxShadow: `0 0 6px ${th.accent}` }} />
+                      <span className="w-2 h-2 rounded-full border border-dashed" style={{ borderColor: th.filled ?? th.accent, backgroundColor: `color-mix(in srgb, ${th.filled ?? th.accent} 35%, transparent)` }} />
                     </span>
                     <span className={`text-xs text-center leading-tight ${active ? 'text-fg font-medium' : 'text-muted'}`}>{themeLabel(th.name)}</span>
                   </button>
@@ -1223,6 +1241,7 @@ export default function CalendarPage() {
                 <div className="mb-6 space-y-9">
                   {allEvents.map(ev => (
                     <EventCard key={`${ev.dayIndex}-${ev.eventIndex}`} ev={ev.event} date={fmtStamp(weekDates[ev.dayIndex], ev.event.time)}
+                      upcoming={isUpcoming(weekDates[ev.dayIndex], ev.event.time)}
                       onEdit={() => startEdit(ev.dayIndex, ev.eventIndex)}
                       onDelete={() => deleteEventFromDay(ev.dayIndex, ev.eventIndex)} />
                   ))}
