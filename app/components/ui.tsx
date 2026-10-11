@@ -23,6 +23,9 @@ export const page = 'mx-auto w-full max-w-2xl px-4 sm:px-6 pt-6 pb-nav animate-f
 /* ------------------------------------------------------------------ */
 /* Sheet : panneau modal                                               */
 /* ------------------------------------------------------------------ */
+// Pile des fenêtres ouvertes : Échap ne ferme que celle du dessus
+const sheetStack: object[] = []
+
 export function Sheet({ open, onClose, title, children, side = 'center', wide = false, headerExtra }: {
   open: boolean
   onClose: () => void
@@ -35,11 +38,17 @@ export function Sheet({ open, onClose, title, children, side = 'center', wide = 
   const { t } = useI18n()
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const me = {}
+    sheetStack.push(me)
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && sheetStack[sheetStack.length - 1] === me) onClose() }
     window.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      const i = sheetStack.indexOf(me); if (i >= 0) sheetStack.splice(i, 1)
+      document.body.style.overflow = prev
+    }
   }, [open, onClose])
 
   if (!open) return null

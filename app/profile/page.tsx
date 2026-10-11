@@ -8,11 +8,12 @@ import { useI18n } from '@/lib/i18n'
 import { uploadMedia, isVideoUrl, MAX_IMAGE_MB } from '@/lib/media'
 import { weekKey, weeksLivedSince } from '@/lib/shareImage'
 import Icon, { type IconName } from '../components/Icon'
+import { WeekSheet, getWeekNumber, type WeekRow } from '../components/social'
 import { Avatar, btn, card, input, EmptyState, Sheet, Skeleton, Spinner, useUI } from '../components/ui'
 
 type Event = { text?: string, description?: string, photos?: string[], place?: { name?: string } | null }
 type Week = {
-  id: string, year: number, week_number: number, title?: string | null, content?: string | null,
+  id: string, user_id?: string, visibility?: string | null, year: number, week_number: number, title?: string | null, content?: string | null,
   days?: { events?: Event[] }[] | null, media_urls?: string[] | null, location?: { name?: string } | null,
 }
 type Profile = {
@@ -51,6 +52,7 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState('')
   const [favoriteWeeks, setFavoriteWeeks] = useState<string[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [openWeek, setOpenWeek] = useState<Week | null>(null)   // moment favori ouvert en lecture
 
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -69,7 +71,7 @@ export default function ProfilePage() {
       setUser({ id: data.user.id, email: data.user.email })
       const [{ data: prof }, { data: rows }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle(),
-        supabase.from('weeks').select('id, year, week_number, title, content, days, media_urls, location')
+        supabase.from('weeks').select('id, user_id, visibility, year, week_number, title, content, days, media_urls, location')
           .eq('user_id', data.user.id)
           .order('year', { ascending: false }).order('week_number', { ascending: false }),
       ])
@@ -101,9 +103,8 @@ export default function ProfilePage() {
   const filledWeeks = useMemo(() => new Set(weeks.filter(isFilled).map(w => weekKey(w.year, w.week_number))), [weeks])
   // Série en cours : semaines consécutives remplies (la semaine actuelle peut encore être vide)
   const streak = useMemo(() => {
-    const d = new Date(now.getFullYear(), 0, 1)
     let y = now.getFullYear()
-    let w = Math.ceil(((now.getTime() - d.getTime()) / 86400000 + d.getDay() + 1) / 7)
+    let w = getWeekNumber(now)
     const prev = (yy: number, ww: number): [number, number] =>
       ww > 1 ? [yy, ww - 1] : [yy - 1, filledWeeks.has(weekKey(yy - 1, 53)) ? 53 : 52]
     if (!filledWeeks.has(weekKey(y, w))) [y, w] = prev(y, w)
@@ -112,7 +113,11 @@ export default function ProfilePage() {
     return n
   }, [filledWeeks, now])
   const favorites = weeks.filter(w => (profile?.favorite_weeks || []).includes(w.id))
-  const titledWeeks = weeks.filter(w => w.title)
+  // Moments proposables en favoris : toutes les semaines qui contiennent quelque chose (récentes d'abord)
+  const pickable = weeks.filter(isFilled)
+  const labelOf = (w: Week) => w.title
+    || (w.days || []).flatMap(d => d?.events || []).find(e => e?.text)?.text
+    || w.content || ''
 
   const shownName = profile?.full_name || profile?.username || t('common.user')
   const showHandle = !!profile?.username && profile.username !== shownName
@@ -170,10 +175,57 @@ export default function ProfilePage() {
     window.scrollTo({ top: 0 })
   }
 
-  const toggleFavorite = (id: string) =>
-    setFavoriteWeeks(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  // Ajout / retrait d'un favori : enregistré tout de suite (pas besoin de passer par « Enregistrer »)
+  const toggleFavorite = async (id: string) => {
+    if (!user) return
+    const previous = favoriteWeeks
+    const next = previous.includes(id) ? previous.filter(x => x !== id) : [...previous, id]
+    setFavoriteWeeks(next)
+    setProfile(p => ({ ...(p || { id: user.id }), favorite_weeks: next }))
+    const { error } = await supabase.from('profiles').upsert({ id: user.id, favorite_weeks: next })
+    if (error) {
+      setFavoriteWeeks(previous)
+      setProfile(p => ({ ...(p || { id: user.id }), favorite_weeks: previous }))
+      toast(t('common.error'), 'error')
+    }
+  }
 
   const openEdit = () => { fillForm(profile); setEditing(true); window.scrollTo({ top: 0 }) }
+
+  /* ---------------- Choix des moments favoris : on fait défiler tous ses moments et on coche ---------------- */
+  const pickerSheet = (
+    <Sheet open={pickerOpen} onClose={() => setPickerOpen(false)} title={t('profile.favPick')}
+      headerExtra={<button onClick={() => setPickerOpen(false)} className={`${btn.ghost} text-brand`}>{t('common.done')}</button>}>
+      {pickable.length === 0 ? (
+        <EmptyState icon="sparkles" title={t('profile.noMoments')} />
+      ) : (
+        <ul className="p-2">
+          {pickable.map(w => {
+            const on = favoriteWeeks.includes(w.id)
+            const cover = mediaOf(w).find(u => !isVideoUrl(u))
+            const label = labelOf(w)
+            return (
+              <li key={w.id}>
+                <button onClick={() => toggleFavorite(w.id)} aria-pressed={on}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-start hover:bg-surface-2 transition active:scale-[0.99]">
+                  <span className="w-14 h-14 rounded-xl overflow-hidden bg-surface-3 shrink-0 flex items-center justify-center text-subtle">
+                    {cover ? <img src={cover} alt="" loading="lazy" className="w-full h-full object-cover" /> : <Icon name="calendar" size={20} />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium truncate">{label || t('common.untitled')}</span>
+                    <span className="block text-xs text-subtle">{t('search.weekYear', { n: w.week_number, year: w.year })}</span>
+                  </span>
+                  <span className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition ${on ? 'bg-brand border-brand text-ink' : 'border-line-strong'}`}>
+                    {on && <Icon name="check" size={14} strokeWidth={3} />}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </Sheet>
+  )
 
   /* ---------------- Mode édition ---------------- */
   if (editing) {
@@ -247,33 +299,7 @@ export default function ProfilePage() {
           </button>
         </section>
 
-        {/* Choix des moments favoris */}
-        <Sheet open={pickerOpen} onClose={() => setPickerOpen(false)} title={t('profile.favPick')}
-          headerExtra={<button onClick={() => setPickerOpen(false)} className={`${btn.ghost} text-brand`}>{t('common.done')}</button>}>
-          {titledWeeks.length === 0 ? (
-            <EmptyState icon="sparkles" title={t('profile.noTitled')} />
-          ) : (
-            <ul className="p-2">
-              {titledWeeks.map(w => {
-                const on = favoriteWeeks.includes(w.id)
-                return (
-                  <li key={w.id}>
-                    <button onClick={() => toggleFavorite(w.id)} aria-pressed={on}
-                      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-start hover:bg-surface-2 transition">
-                      <span className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${on ? 'bg-brand border-brand text-ink' : 'border-line-strong'}`}>
-                        {on && <Icon name="check" size={14} strokeWidth={3} />}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-medium truncate">{w.title}</span>
-                        <span className="block text-xs text-subtle">{t('search.weekYear', { n: w.week_number, year: w.year })}</span>
-                      </span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </Sheet>
+        {pickerSheet}
       </main>
     )
   }
@@ -354,14 +380,24 @@ export default function ProfilePage() {
 
         {/* Colonne principale : moments favoris + grille de photos */}
         <div className="flex flex-col gap-8 mt-8 lg:mt-0">
-          {favorites.length > 0 && (
+          {(
             <section>
-              <h2 className="text-sm font-semibold mb-3 flex items-center gap-2"><Icon name="sparkles" size={16} className="text-brand" />{t('profile.favorites')}</h2>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h2 className="text-sm font-semibold flex items-center gap-2"><Icon name="sparkles" size={16} className="text-brand" />{t('profile.favorites')}</h2>
+                <button onClick={() => setPickerOpen(true)} className={`${btn.secondary} h-9 px-3 text-xs`}>
+                  <Icon name="plus" size={14} />{t('profile.addFavorite')}
+                </button>
+              </div>
+              {favorites.length === 0 && (
+                <button onClick={() => setPickerOpen(true)} className={`${card} w-full p-5 text-start hover:bg-surface-2 transition`}>
+                  <p className="text-sm text-muted">{t('profile.favEmptyText')}</p>
+                </button>
+              )}
               <div className="grid gap-3 sm:grid-cols-2">
                 {favorites.map(w => {
                   const cover = mediaOf(w).find(u => !isVideoUrl(u))
                   return (
-                    <Link key={w.id} href={weekHref(w)} className={`${card} overflow-hidden flex flex-col hover:border-line-strong hover:bg-surface-2 transition active:scale-[0.99]`}>
+                    <button key={w.id} type="button" onClick={() => setOpenWeek(w)} className={`${card} overflow-hidden flex flex-col text-start w-full hover:border-line-strong hover:bg-surface-2 transition active:scale-[0.99]`}>
                       {cover && <img src={cover} alt="" loading="lazy" className="w-full h-32 object-cover bg-surface-2" />}
                       <div className="p-4">
                         <p className="text-xs font-medium text-brand">{t('search.weekYear', { n: w.week_number, year: w.year })}</p>
@@ -369,7 +405,7 @@ export default function ProfilePage() {
                         {w.content && <p className="text-sm text-muted mt-1 line-clamp-2">{w.content}</p>}
                         {w.location?.name && <p className="flex items-center gap-1 text-xs text-subtle mt-2"><Icon name="mapPin" size={12} /><span className="truncate">{w.location.name}</span></p>}
                       </div>
-                    </Link>
+                    </button>
                   )
                 })}
               </div>
@@ -413,6 +449,18 @@ export default function ProfilePage() {
           </section>
         </div>
       </div>
+      {openWeek && user && (
+        <WeekSheet week={{ ...openWeek, user_id: user.id } as WeekRow} me={user.id}
+          author={{ id: user.id, username: profile?.username, full_name: profile?.full_name, avatar_url: profile?.avatar_url }}
+          onClose={() => setOpenWeek(null)}
+          footer={<div className="flex items-center gap-2">
+            <button onClick={() => { toggleFavorite(openWeek.id); setOpenWeek(null) }} aria-label={t('week.favRemove')} title={t('week.favRemove')} className={btn.icon}>
+              <Icon name="heart" size={20} filled className="text-brand" />
+            </button>
+            <Link href={weekHref(openWeek)} className={btn.secondary}><Icon name="pencil" size={16} />{t('profile.editInCalendar')}</Link>
+          </div>} />
+      )}
+      {pickerSheet}
     </main>
   )
 }

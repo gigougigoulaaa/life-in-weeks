@@ -57,7 +57,7 @@ export default function FeedPage() {
     const { data, error: err } = ids.length === 0
       ? { data: [], error: null }
       : await supabase.from('weeks').select(WEEK_COLUMNS)
-        .in('user_id', ids).eq('visibility', 'public')
+        .in('user_id', ids).neq('visibility', 'private')
         .order('year', { ascending: false }).order('week_number', { ascending: false })
         .range(offset, offset + PAGE_SIZE - 1)
     if (id !== requestId.current) return

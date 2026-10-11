@@ -65,24 +65,13 @@ body {
 .pb-nav { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
 @media (min-width: 768px) { .pb-nav { padding-bottom: 2.5rem; } }
 
-/* Carte (Leaflet) en version sombre */
-/* Fond de carte clair d'OpenStreetMap rendu sombre (inversion des couleurs) */
-.map-tiles-dark { filter: invert(1) hue-rotate(180deg) brightness(0.8) contrast(0.9) saturate(0.55); }
-.leaflet-container { background: #0a0a0b; font-family: var(--font-sans); }
-.leaflet-popup-content-wrapper, .leaflet-popup-tip {
-  background: #141416 !important; color: #fafafa !important;
-  border: 1px solid #2a2a2e; box-shadow: 0 12px 32px rgba(0,0,0,.5) !important;
-}
-.leaflet-popup-content-wrapper { border-radius: 16px !important; }
-.leaflet-popup-content { margin: 12px 14px !important; }
-.leaflet-container a.leaflet-popup-close-button { color: #a1a1aa !important; }
-.leaflet-control-zoom a {
-  background: #141416 !important; color: #fafafa !important; border-color: #2a2a2e !important;
-}
-.leaflet-control-attribution {
-  background: rgba(10,10,11,.7) !important; color: #71717a !important;
-}
-.leaflet-control-attribution a { color: #a1a1aa !important; }
+/* Carte (MapLibre) en version sombre */
+.map-canvas-dark { background: #0a0a0b; font-family: var(--font-sans); }
+.maplibregl-ctrl-group { background: #141416 !important; border: 1px solid #2a2a2e; box-shadow: none !important; }
+.maplibregl-ctrl-group button + button { border-top: 1px solid #2a2a2e !important; }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1); }
+.maplibregl-ctrl-attrib { background: rgba(10,10,11,.7) !important; color: #71717a !important; }
+.maplibregl-ctrl-attrib a { color: #a1a1aa !important; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }

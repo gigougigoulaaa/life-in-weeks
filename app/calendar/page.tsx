@@ -12,9 +12,13 @@ import Logo from '../components/Logo'
 import { Sheet, Avatar, EmptyState, Skeleton, Spinner, useUI, btn, input, card } from '../components/ui'
 
 function getWeekNumber(date: Date): number {
-  const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
-  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000
-  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
+  // Même règle que getWeekDates : la semaine 1 commence au premier lundi de l'année, les semaines vont du lundi au dimanche
+  const jan1 = new Date(date.getFullYear(), 0, 1)
+  const dow = jan1.getDay()
+  const firstMonday = new Date(date.getFullYear(), 0, 1 + (dow <= 1 ? 1 - dow : 8 - dow))
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const diffDays = Math.round((day.getTime() - firstMonday.getTime()) / 86400000)
+  return Math.max(1, Math.floor(diffDays / 7) + 1)
 }
 
 function getWeekDates(year: number, week: number): Date[] {
@@ -123,6 +127,13 @@ function Media({ url, className, controls = true }: { url: string, className?: s
 
 const EMPTY_DAYS = () => Array(7).fill(null).map(() => ({ events: [] }))
 
+// Une semaine est « marquée » seulement si elle contient quelque chose (une ligne vide laissée par un évènement supprimé ne compte pas)
+function weekHasContent(w: any): boolean {
+  if (!w) return false
+  return !!(w.title || w.content || (Array.isArray(w.media_urls) && w.media_urls.length > 0)
+    || (Array.isArray(w.days) && w.days.some((d: any) => Array.isArray(d?.events) && d.events.length > 0)))
+}
+
 function parseDays(raw: any): any[] {
   if (!Array.isArray(raw) || raw.length === 0) return EMPTY_DAYS()
   const result = EMPTY_DAYS()
@@ -154,6 +165,16 @@ function computeLayout(containerWidth: number) {
 const readStore = (key: string) => { try { return localStorage.getItem(key) } catch { return null } }
 const writeStore = (key: string, value: string) => { try { localStorage.setItem(key, value) } catch {} }
 
+// Qui peut voir une semaine (même valeurs que la colonne « visibility » de la table weeks)
+type Audience = 'private' | 'friends' | 'followers' | 'public'
+const AUDIENCES: { key: Audience, icon: IconName, label: Key, desc: Key, toast: Key }[] = [
+  { key: 'public', icon: 'globe', label: 'week.audPublic', desc: 'week.audPublicDesc', toast: 'week.nowPublic' },
+  { key: 'followers', icon: 'users', label: 'week.audFollowers', desc: 'week.audFollowersDesc', toast: 'week.nowFollowers' },
+  { key: 'friends', icon: 'heart', label: 'week.audFriends', desc: 'week.audFriendsDesc', toast: 'week.nowFriends' },
+  { key: 'private', icon: 'lock', label: 'week.audPrivate', desc: 'week.audPrivateDesc', toast: 'week.nowPrivate' },
+]
+const audienceOf = (a: Audience) => AUDIENCES.find(x => x.key === a) || AUDIENCES[3]
+
 export default function CalendarPage() {
   const { t, timeAgo, yearsAgo, fmtStamp, fmtShortDate } = useI18n()
   const { toast, confirm } = useUI()
@@ -174,7 +195,10 @@ export default function CalendarPage() {
   const [bgImage, setBgImage] = useState('')
   const [uploadingBg, setUploadingBg] = useState(false)
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null)
-  const [weekVisibility, setWeekVisibility] = useState<'private' | 'public'>('private')
+  const [weekVisibility, setWeekVisibility] = useState<Audience>('private')
+  const [audienceOpen, setAudienceOpen] = useState(false)
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([])   // moments favoris (profil)
+  const [pendingFav, setPendingFav] = useState(false)             // favori demandé avant la création de la semaine
   const [newEventPlace, setNewEventPlace] = useState<Place | null>(null)
   const [showPlace, setShowPlace] = useState(false)
   const [showEventForm, setShowEventForm] = useState(false)
@@ -196,6 +220,14 @@ export default function CalendarPage() {
   const [newEventDesc, setNewEventDesc] = useState('')
   const [newEventPhotos, setNewEventPhotos] = useState<string[]>([])
   const [uploadingEvent, setUploadingEvent] = useState(false)
+  // Modification d'un évènement existant (jour + rang dans la journée)
+  const [editing, setEditing] = useState<{ dayIndex: number, eventIndex: number } | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDesc, setEditDesc] = useState('')
+  const [editPhotos, setEditPhotos] = useState<string[]>([])
+  const [editPlace, setEditPlace] = useState<Place | null>(null)
+  const [showEditPlace, setShowEditPlace] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
   const [addingEvent, setAddingEvent] = useState(false)
 
   const [layout, setLayout] = useState(() =>
@@ -234,8 +266,9 @@ export default function CalendarPage() {
   const loadMemories = async (userId: string) => {
     const { data: weeks } = await supabase.from('weeks').select('*').eq('user_id', userId)
       .eq('week_number', currentWeek).neq('year', currentYear).order('year', { ascending: false })
-    if (weeks && weeks.length > 0) {
-      setMemories(weeks)
+    const filled = (weeks || []).filter(weekHasContent)
+    if (filled.length > 0) {
+      setMemories(filled)
       // Pas d'ouverture automatique si on arrive par un lien vers une semaine précise
       if (!new URLSearchParams(window.location.search).has('w')) setShowMemories(true)
     }
@@ -374,6 +407,7 @@ export default function CalendarPage() {
     setDays(EMPTY_DAYS())
     setSelectedWeekId(null)
     setWeekVisibility('private')
+    setPendingFav(false)
     const uid = userId || user?.id
     if (!uid) return
     const { data, error } = await supabase
@@ -383,7 +417,7 @@ export default function CalendarPage() {
     const existing = data[0]
     setSelectedWeekId(existing.id)
     setDays(parseDays(existing.days))
-    setWeekVisibility(existing.visibility === 'public' ? 'public' : 'private')
+    setWeekVisibility(AUDIENCES.some(a => a.key === existing.visibility) ? existing.visibility : 'private')
   }
 
   // Au chargement : utilisateur, profil (date de naissance, thème), semaines, souvenirs, notifications
@@ -392,10 +426,11 @@ export default function CalendarPage() {
       if (!data.user) { window.location.href = '/login'; return }
       setUser(data.user)
       const [{ data: profile }] = await Promise.all([
-        supabase.from('profiles').select('birth_date, theme').eq('id', data.user.id).single(),
+        supabase.from('profiles').select('birth_date, theme, favorite_weeks').eq('id', data.user.id).single(),
         loadWeeks(data.user.id),
       ])
       if (profile?.birth_date) setBirthDate(new Date(profile.birth_date))
+      setFavoriteIds(profile?.favorite_weeks || [])
       if (profile?.theme) {
         if (profile.theme.accent) setTheme(profile.theme)
         if (profile.theme.cellShape) setCellShape(profile.theme.cellShape)
@@ -417,17 +452,35 @@ export default function CalendarPage() {
   }, [])
 
 
-  // Visible par mes abonnés : enregistré tout de suite si la semaine existe déjà,
+  // Qui peut voir la semaine : enregistré tout de suite si la semaine existe déjà,
   // sinon gardé en mémoire et appliqué à la création de la semaine (premier évènement)
-  const toggleVisibility = async () => {
+  const chooseAudience = async (next: Audience) => {
+    setAudienceOpen(false)
     const previous = weekVisibility
-    const next = previous === 'public' ? 'private' : 'public'
+    if (next === previous) return
     setWeekVisibility(next)
     if (!selectedWeekId) return
     const { error } = await supabase.from('weeks').update({ visibility: next }).eq('id', selectedWeekId)
     if (error) { setWeekVisibility(previous); toast(t('common.error'), 'error'); return }
     setSavedWeeks(prev => prev.map(w => (w.id === selectedWeekId ? { ...w, visibility: next } : w)))
-    toast(t(next === 'public' ? 'week.nowPublic' : 'week.nowPrivate'))
+    toast(t(AUDIENCES.find(a => a.key === next)!.toast))
+  }
+
+  // Moment favori : enregistré tout de suite si la semaine existe déjà, sinon appliqué à sa création (premier évènement)
+  const saveFavorites = async (next: string[]) => {
+    if (!user) return false
+    const previous = favoriteIds
+    setFavoriteIds(next)
+    const { error } = await supabase.from('profiles').upsert({ id: user.id, favorite_weeks: next })
+    if (error) { setFavoriteIds(previous); toast(t('common.error'), 'error'); return false }
+    return true
+  }
+  const isFavorite = selectedWeekId ? favoriteIds.includes(selectedWeekId) : pendingFav
+  const toggleFavorite = async () => {
+    if (!selectedWeekId) { setPendingFav(v => !v); return }
+    const on = favoriteIds.includes(selectedWeekId)
+    const ok = await saveFavorites(on ? favoriteIds.filter(x => x !== selectedWeekId) : [...favoriteIds, selectedWeekId])
+    if (ok) toast(t(on ? 'week.favRemoved' : 'week.favAdded'))
   }
 
   // Envoie les fichiers un par un : un fichier refusé n'empêche pas les autres de partir
@@ -464,12 +517,64 @@ export default function CalendarPage() {
         user_id: user.id, year: selectedWeek.year, week_number: selectedWeek.week,
         title: '', content: '', visibility: weekVisibility, days: updatedDays
       }).select().single()
-      if (data) setSelectedWeekId(data.id)
+      if (data) {
+        setSelectedWeekId(data.id)
+        if (pendingFav) { await saveFavorites([...favoriteIds, data.id]); setPendingFav(false) }
+      }
       failed = !!error
     }
     toast(failed ? t('common.error') : t('week.added'), failed ? 'error' : 'success')
     await loadWeeks(user.id)
     setAddingEvent(false)
+  }
+
+  const startEdit = (dayIndex: number, eventIndex: number) => {
+    const ev = days[dayIndex]?.events?.[eventIndex]
+    if (!ev) return
+    setEditTitle(ev.text || '')
+    setEditDesc(ev.description || '')
+    setEditPhotos((ev.photos || []).filter(Boolean))
+    setEditPlace(ev.place || null)
+    setEditing({ dayIndex, eventIndex })
+  }
+
+  const uploadEditPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : []
+    e.target.value = ''
+    if (files.length === 0 || !user) return
+    setUploadingEvent(true)
+    for (const file of files) {
+      const { url, error } = await uploadMedia('weeks-media', user.id, file)
+      if (url) setEditPhotos(prev => [...prev, url])
+      else if (error) toast(mediaError(error), 'error')
+    }
+    setUploadingEvent(false)
+  }
+
+  const saveEdit = async () => {
+    if (!editing || !editTitle.trim() || savingEdit || uploadingEvent) return
+    setSavingEdit(true)
+    const { dayIndex, eventIndex } = editing
+    const updatedDays = days.map((d, i) => {
+      if (i !== dayIndex) return d
+      return {
+        ...d,
+        events: (d?.events || []).map((ev: any, j: number) => {
+          if (j !== eventIndex) return ev
+          const { place: _old, ...rest } = ev
+          return { ...rest, text: editTitle.trim(), description: editDesc.trim(), photos: editPhotos, ...(editPlace ? { place: editPlace } : {}) }
+        }),
+      }
+    })
+    if (selectedWeekId) {
+      const { error } = await supabase.from('weeks').update({ days: updatedDays }).eq('id', selectedWeekId)
+      if (error) { toast(t('common.error'), 'error'); setSavingEdit(false); return }
+    }
+    setDays(updatedDays)
+    setEditing(null)
+    toast(t('week.edited'))
+    if (user) await loadWeeks(user.id)
+    setSavingEdit(false)
   }
 
   const deleteEventFromDay = async (dayIndex: number, eventIndex: number) => {
@@ -542,9 +647,9 @@ export default function CalendarPage() {
     const isPast = year < currentYear || (year === currentYear && weekNum < currentWeek)
     const isCurrent = year === currentYear && weekNum === currentWeek
     const isBeforeBirth = birthDate && year === birthDate.getFullYear() && weekNum < getWeekNumber(birthDate)
-    const hasSaved = savedWeeks.find(w => w.year === year && w.week_number === weekNum)
+    const hasSaved = savedWeeks.find(w => w.year === year && w.week_number === weekNum && weekHasContent(w))
     const hasLocation = hasSaved?.location || parseDays(hasSaved?.days).some((d: any) => (d?.events || []).some((e: any) => e?.place))
-    const isMemory = memories.find(m => m.year === year && m.week_number === weekNum)
+    const isMemory = memories.find(m => m.year === year && m.week_number === weekNum && weekHasContent(m))
     const kind: CellKind = isBeforeBirth ? 'before' : isCurrent ? 'current' : isMemory ? 'memory' : hasSaved ? 'filled' : isPast ? 'past' : 'future'
     return (
       <div key={weekNum}
@@ -1081,12 +1186,19 @@ export default function CalendarPage() {
       {/* Fenêtre d'une semaine : évènements triés par ordre chronologique, médias visibles directement */}
       <Sheet wide open={!!selectedWeek} onClose={() => setSelectedWeek(null)}
         headerExtra={selectedWeek && (
-          <button onClick={toggleVisibility} role="switch" aria-checked={weekVisibility === 'public'}
-            title={t(weekVisibility === 'public' ? 'week.visibilityOn' : 'week.visibilityOff')}
-            className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-xs font-medium border transition active:scale-95 ${weekVisibility === 'public' ? 'bg-brand-soft text-brand border-brand/40' : 'bg-surface-2 text-muted border-line hover:text-fg'}`}>
-            <Icon name={weekVisibility === 'public' ? 'eye' : 'lock'} size={14} />
-            {t(weekVisibility === 'public' ? 'week.visPublic' : 'week.visPrivate')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={toggleFavorite} aria-pressed={isFavorite}
+              aria-label={t(isFavorite ? 'week.favRemove' : 'week.fav')} title={t(isFavorite ? 'week.favRemove' : 'week.fav')}
+              className={`inline-flex items-center justify-center w-9 h-9 rounded-full border transition active:scale-90 ${isFavorite ? 'bg-brand-soft text-brand border-brand/40' : 'bg-surface-2 text-muted border-line hover:text-fg'}`}>
+              <Icon name="heart" size={16} filled={isFavorite} />
+            </button>
+            <button onClick={() => setAudienceOpen(true)} aria-haspopup="dialog"
+              title={t('week.audTitle')}
+              className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-xs font-medium border transition active:scale-95 ${weekVisibility === 'private' ? 'bg-surface-2 text-muted border-line hover:text-fg' : 'bg-brand-soft text-brand border-brand/40'}`}>
+              <Icon name={audienceOf(weekVisibility).icon} size={14} />
+              {t(audienceOf(weekVisibility).label)}
+            </button>
+          </div>
         )}
         title={selectedWeek && (
           <div className="min-w-0">
@@ -1111,6 +1223,7 @@ export default function CalendarPage() {
                 <div className="mb-6 space-y-9">
                   {allEvents.map(ev => (
                     <EventCard key={`${ev.dayIndex}-${ev.eventIndex}`} ev={ev.event} date={fmtStamp(weekDates[ev.dayIndex], ev.event.time)}
+                      onEdit={() => startEdit(ev.dayIndex, ev.eventIndex)}
                       onDelete={() => deleteEventFromDay(ev.dayIndex, ev.eventIndex)} />
                   ))}
                 </div>
@@ -1191,6 +1304,77 @@ export default function CalendarPage() {
           </div>
         )}
       </Sheet>
+      {/* Qui peut voir cette semaine ? */}
+      <Sheet open={audienceOpen && !!selectedWeek} onClose={() => setAudienceOpen(false)} title={t('week.audTitle')}>
+        <ul className="p-2">
+          {AUDIENCES.map(a => {
+            const on = weekVisibility === a.key
+            return (
+              <li key={a.key}>
+                <button onClick={() => chooseAudience(a.key)} aria-pressed={on}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-start hover:bg-surface-2 transition active:scale-[0.99]">
+                  <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${on ? 'bg-brand-soft text-brand' : 'bg-surface-2 text-muted'}`}>
+                    <Icon name={a.icon} size={18} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">{t(a.label)}</span>
+                    <span className="block text-xs text-subtle mt-0.5">{t(a.desc)}</span>
+                  </span>
+                  <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${on ? 'bg-brand border-brand text-ink' : 'border-line-strong'}`}>
+                    {on && <Icon name="check" size={12} strokeWidth={3} />}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </Sheet>
+
+      <Sheet open={!!editing} onClose={() => setEditing(null)} title={t('week.editTitle')}>
+        <div className="space-y-3">
+          <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder={t('week.titlePh')} className={input} />
+          <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} placeholder={t('week.descPh')} rows={4}
+            className={`${input.replace('h-11', '')} py-2.5 resize-none`} />
+          <button type="button" onClick={() => setShowEditPlace(true)}
+            className="w-full flex items-center gap-3 text-start rounded-xl border border-line bg-surface-2 px-3.5 h-11 hover:bg-surface-3 transition">
+            <span className={editPlace ? 'text-brand' : 'text-muted'}><Icon name="mapPin" size={18} /></span>
+            <span className={`flex-1 min-w-0 truncate text-sm ${editPlace ? 'text-fg' : 'text-subtle'}`}>{editPlace ? editPlace.name : t('place.rowEmpty')}</span>
+            {editPlace
+              ? <span role="button" aria-label={t('place.remove')} onClick={e => { e.stopPropagation(); setEditPlace(null) }} className="text-subtle hover:text-fg"><Icon name="x" size={16} /></span>
+              : <Icon name="chevronRight" size={16} className="text-subtle" />}
+          </button>
+          {editPhotos.length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {editPhotos.map((url, pi) => (
+                <div key={url + pi} className="relative rounded-xl overflow-hidden bg-surface-3 aspect-square">
+                  <Media url={url} controls={false} className="absolute inset-0 w-full h-full object-cover" />
+                  {isVideoUrl(url) && (
+                    <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="w-9 h-9 rounded-full bg-black/55 text-white flex items-center justify-center"><Icon name="play" size={16} filled /></span>
+                    </span>
+                  )}
+                  <button onClick={() => setEditPhotos(prev => prev.filter((_, j) => j !== pi))} aria-label={t('week.removeMedia')}
+                    className="absolute top-0 end-0 w-10 h-10 flex items-start justify-end p-1.5">
+                    <span className="w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center"><Icon name="x" size={14} /></span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+            <label className={`${btn.secondary} cursor-pointer sm:flex-1 ${uploadingEvent ? 'opacity-60 pointer-events-none' : ''}`}>
+              {uploadingEvent ? <Spinner size={16} /> : <Icon name="camera" size={18} />}
+              {uploadingEvent ? t('theme.uploading') : t('week.addMedia')}
+              <input type="file" accept="image/*,video/*" multiple onChange={uploadEditPhoto} className="hidden" />
+            </label>
+            <button onClick={saveEdit} disabled={!editTitle.trim() || uploadingEvent || savingEdit} className={`${btn.primary} sm:flex-1`}>
+              {savingEdit ? <Spinner size={16} /> : <Icon name="check" size={18} />}
+              {t('week.save')}
+            </button>
+          </div>
+        </div>
+      </Sheet>
+      <PlacePicker open={showEditPlace} onClose={() => setShowEditPlace(false)} value={editPlace} onChange={setEditPlace} />
       <PlacePicker open={showPlace && !!selectedWeek} onClose={() => setShowPlace(false)} value={newEventPlace} onChange={setNewEventPlace} />
     </div>
   )

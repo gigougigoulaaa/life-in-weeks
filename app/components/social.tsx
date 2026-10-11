@@ -45,7 +45,17 @@ export type FlatEvent = WeekEvent & { day: number }
 export const WEEK_COLUMNS = 'id, user_id, year, week_number, title, content, visibility, days, location, media_urls'
 export const PROFILE_COLUMNS = 'id, username, full_name, avatar_url, bio, is_private'
 
-// Les 7 dates (lundi → dimanche) d'une semaine — même calcul que le calendrier
+// Numéro de la semaine d'une date : même règle que getWeekDates (semaine 1 = premier lundi de l'année, lundi → dimanche)
+export function getWeekNumber(date: Date): number {
+  const jan1 = new Date(date.getFullYear(), 0, 1)
+  const dow = jan1.getDay()
+  const firstMonday = new Date(date.getFullYear(), 0, 1 + (dow <= 1 ? 1 - dow : 8 - dow))
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const diffDays = Math.round((day.getTime() - firstMonday.getTime()) / 86400000)
+  return Math.max(1, Math.floor(diffDays / 7) + 1)
+}
+
+// Les 7 dates (lundi → dimanche) d'une semaine
 export function getWeekDates(year: number, week: number): Date[] {
   const jan1 = new Date(year, 0, 1)
   const dayOfWeek = jan1.getDay()
@@ -790,9 +800,10 @@ export function WeekCard({ week, author, me, onOpen, onBlocked }: {
 /* ------------------------------------------------------------------ */
 /* Fiche complète d'une semaine, en lecture seule                      */
 /* ------------------------------------------------------------------ */
-export function WeekSheet({ week, author, me, onClose, onBlocked }: {
+export function WeekSheet({ week, author, me, onClose, onBlocked, footer }: {
   week: WeekRow | null, author?: PublicProfile | null, me?: string | null, onClose: () => void,
-  onBlocked?: (userId: string) => void
+  onBlocked?: (userId: string) => void,
+  footer?: React.ReactNode   // ex. bouton « Modifier dans le calendrier » sur mon propre profil
 }) {
   const { t, fmtStamp } = useI18n()
   if (!week) return null
@@ -844,6 +855,7 @@ export function WeekSheet({ week, author, me, onClose, onBlocked }: {
       <div className="sticky bottom-0 flex items-center gap-1 px-3 py-2 border-t border-line bg-surface">
         <ReactionButton weekId={week.id} ownerId={week.user_id} weekNumber={week.week_number} />
         <CommentButton weekId={week.id} ownerId={week.user_id} weekNumber={week.week_number} />
+        {footer && <div className="ms-auto">{footer}</div>}
       </div>
     </Sheet>
   )

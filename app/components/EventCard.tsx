@@ -1,5 +1,5 @@
 'use client'
-// Un évènement : ruban date, titre, lieu, texte dans une carte, puis photos/vidéos (cadre à balayer + petite pellicule de vignettes). Utilisé dans le calendrier et sur la fiche d'une semaine.
+// Un évènement : ruban date, grand titre, lieu, texte, puis photos/vidéos en grand (cadre à balayer + points de navigation). Utilisé dans le calendrier et sur la fiche d'une semaine.
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { isVideoUrl } from '@/lib/media'
@@ -75,7 +75,7 @@ function Lightbox({ urls, start, onClose }: { urls: string[], start: number, onC
   )
 }
 
-export default function EventCard({ ev, date, onDelete }: { ev: EventCardData, date: string, onDelete?: () => void }) {
+export default function EventCard({ ev, date, onDelete, onEdit }: { ev: EventCardData, date: string, onDelete?: () => void, onEdit?: () => void }) {
   const { t } = useI18n()
   const [idx, setIdx] = useState(0)
   const [more, setMore] = useState(false)
@@ -101,11 +101,14 @@ export default function EventCard({ ev, date, onDelete }: { ev: EventCardData, d
       {/* Ruban : date et heure, en petites capitales */}
       <div className="flex items-center justify-between gap-3 mb-1.5">
         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand truncate">{date}</p>
-        {onDelete && (
-          <button onClick={onDelete} aria-label={t('common.delete')} className={`${btn.icon} shrink-0 -me-2 -my-2`}><Icon name="trash" size={17} /></button>
+        {(onEdit || onDelete) && (
+          <div className="flex items-center shrink-0 -me-2 -my-2">
+            {onEdit && <button onClick={onEdit} aria-label={t('week.editEvent')} className={btn.icon}><Icon name="pencil" size={17} /></button>}
+            {onDelete && <button onClick={onDelete} aria-label={t('common.delete')} className={btn.icon}><Icon name="trash" size={17} /></button>}
+          </div>
         )}
       </div>
-      <h3 className="text-[22px] font-bold leading-tight tracking-tight">{title}</h3>
+      <h3 className="text-[26px] font-extrabold leading-[1.1] tracking-tight">{title}</h3>
       {place && (
         <p className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand border-b border-dashed border-brand/50 pb-0.5 max-w-full">
           <Icon name="mapPin" size={14} /> <span className="truncate">{place}</span>
@@ -114,7 +117,7 @@ export default function EventCard({ ev, date, onDelete }: { ev: EventCardData, d
 
       {/* Texte d'abord */}
       {desc && (
-        <div className="mt-3.5 rounded-2xl bg-surface border-s-[3px] border-brand px-4 py-3.5">
+        <div className="mt-3.5">
           <p className={`text-[14.5px] text-fg/90 leading-relaxed whitespace-pre-wrap ${long && !more ? 'line-clamp-4' : ''}`}>{desc}</p>
           {long && (
             <button onClick={() => setMore(v => !v)} className="text-sm text-subtle hover:text-fg mt-1">
@@ -124,9 +127,9 @@ export default function EventCard({ ev, date, onDelete }: { ev: EventCardData, d
         </div>
       )}
 
-      {/* Photos : un cadre arrondi, et une pellicule de petites vignettes discrète */}
+      {/* Photos : un cadre arrondi, et des points de navigation */}
       {photos.length > 0 && (
-        <div className="mt-3.5">
+        <div className="mt-4">
           <div className="relative">
             <div ref={scroller} onScroll={onScroll}
               className="flex overflow-x-auto snap-x snap-mandatory rounded-3xl bg-surface-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -147,12 +150,10 @@ export default function EventCard({ ev, date, onDelete }: { ev: EventCardData, d
             )}
           </div>
           {photos.length > 1 && (
-            <div className="flex gap-1.5 mt-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex justify-center gap-2 mt-2.5">
               {photos.map((u, i) => (
                 <button key={u + i} onClick={() => goTo(i)} aria-label={`${i + 1} / ${photos.length}`}
-                  className={`relative shrink-0 w-9 h-9 rounded-lg overflow-hidden border-2 transition ${i === idx ? 'border-brand' : 'border-transparent opacity-60'}`}>
-                  <Media url={u} controls={false} className="w-full h-full object-cover pointer-events-none" />
-                </button>
+                  className="p-1 -m-1"><span className={`block w-1.5 h-1.5 rounded-full transition ${i === idx ? 'bg-brand' : 'bg-surface-3'}`} /></button>
               ))}
             </div>
           )}

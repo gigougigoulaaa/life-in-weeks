@@ -58,7 +58,7 @@ export default function PublicProfilePage() {
           supabase.from('follows').select('status').eq('follower_id', auth.user.id).eq('following_id', id).maybeSingle(),
           supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', id).eq('status', 'accepted'),
           supabase.from('follows').select('following_id', { count: 'exact', head: true }).eq('follower_id', id).eq('status', 'accepted'),
-          supabase.from('weeks').select('id', { count: 'exact', head: true }).eq('user_id', id).eq('visibility', 'public'),
+          supabase.from('weeks').select('id', { count: 'exact', head: true }).eq('user_id', id).neq('visibility', 'private'),
           isBlockedByMe(id),
         ])
         // Profil supprimé, ou personne qui m'a bloqué (invisible pour moi) : état « introuvable », pas une erreur
@@ -78,7 +78,7 @@ export default function PublicProfilePage() {
   const loadWeeks = useCallback(async (offset: number) => {
     if (!id) return
     const { data, error } = await supabase.from('weeks').select(WEEK_COLUMNS)
-      .eq('user_id', id).eq('visibility', 'public')
+      .eq('user_id', id).neq('visibility', 'private')
       .order('year', { ascending: false }).order('week_number', { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1)
     if (error) toast(t('common.error'), 'error')
